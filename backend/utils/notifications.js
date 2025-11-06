@@ -1,10 +1,15 @@
 const nodemailer = require('nodemailer');
+const path = require('path');
+
+// Ensure .env is loaded (in case this module is loaded before server.js)
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Configure email transporter
 let transporter = null;
 
 // Initialize transporter if credentials are available
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  console.log('📧 Initializing email transporter...');
   try {
     transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -22,9 +27,14 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     // Verify connection configuration
     transporter.verify((error, success) => {
       if (error) {
-        console.error('Email transporter verification failed:', error);
+        console.error('❌ Email transporter verification failed:', error.message);
+        if (error.code === 'EAUTH') {
+          console.error('   Authentication failed. Check EMAIL_USER and EMAIL_PASS');
+        } else if (error.code === 'ECONNECTION') {
+          console.error('   Connection failed. Check EMAIL_HOST and EMAIL_PORT');
+        }
       } else {
-        console.log('Email transporter is ready to send messages');
+        console.log('✅ Email transporter is ready to send messages');
       }
     });
   } catch (error) {
@@ -182,14 +192,31 @@ const sendContributionVerified = async (user, contribution) => {
 
 // Send new event notification to all registered students
 const sendNewEventNotification = async (event, students) => {
-  console.log(`\n📧 === Starting email notification for event: ${event.title} ===`);
+  console.log(`\n📧 ===== Starting email notification for event: ${event.title} =====`);
   console.log(`📋 Total registered students to notify: ${students.length}`);
   
   // Check email configuration first
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.error('❌ EMAIL_USER or EMAIL_PASS not configured in .env file');
     console.error('   Email notifications will be skipped. Please configure email in backend/.env');
-    return students.map(s => ({ student: s.email || 'no-email', success: false, error: 'Email not configured' }));
+    return students.map(s => ({ 
+      student: s.email || 'no-email', 
+      studentName: s.name,
+      success: false, 
+      error: 'Email not configured' 
+    }));
+  }
+
+  // Verify transporter is ready
+  if (!transporter) {
+    console.error('❌ Email transporter not initialized');
+    console.error('   This usually means email credentials are invalid or transporter failed to initialize');
+    return students.map(s => ({ 
+      student: s.email || 'no-email', 
+      studentName: s.name,
+      success: false, 
+      error: 'Email transporter not initialized' 
+    }));
   }
 
   // Filter students with valid email addresses
@@ -200,6 +227,10 @@ const sendNewEventNotification = async (event, students) => {
     console.warn('⚠️ No students found with valid email addresses');
     return [];
   }
+  
+  console.log('✅ Email configuration verified, starting to send emails...');
+  console.log(`   Using EMAIL_USER: ${process.env.EMAIL_USER}`);
+  console.log(`   Transporter initialized: ${transporter ? 'Yes' : 'No'}`);
 
   const subject = `New NSS Event: ${event.title}`;
   const text = `Dear Student,\n\nA new NSS event "${event.title}" has been created!\n\nEvent Details:\n- Type: ${event.eventType}\n- Location: ${event.location}\n- Start Date: ${new Date(event.startDate).toLocaleDateString()}\n- End Date: ${new Date(event.endDate).toLocaleDateString()}\n- Registration Deadline: ${new Date(event.registrationDeadline).toLocaleDateString()}\n\nLog in to the NSS Portal to register for this event.`;

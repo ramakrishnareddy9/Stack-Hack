@@ -6,7 +6,8 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import EventModal from '../../components/Admin/EventModal';
 
@@ -119,7 +120,7 @@ const AdminEvents = () => {
                 <span>{new Date(event.startDate).toLocaleDateString()}</span>
                 <span>{event.currentParticipants}/{event.maxParticipants || '∞'}</span>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 mb-2">
                 <button
                   onClick={() => handleEdit(event)}
                   className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -142,6 +143,13 @@ const AdminEvents = () => {
                   <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
+              <Link
+                to={`/admin/certificates/${event._id}`}
+                className="w-full inline-flex justify-center items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+              >
+                <DocumentTextIcon className="h-4 w-4 mr-1" />
+                Certificate Config
+              </Link>
             </div>
           </div>
         ))}

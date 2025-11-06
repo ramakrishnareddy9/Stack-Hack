@@ -42,7 +42,11 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const response = await axios.get('/api/auth/me');
-      setUser(response.data);
+      const userData = response.data;
+      setUser(userData);
+      // Also update localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('✅ User fetched:', userData.name, 'Role:', userData.role);
     } catch (error) {
       console.error('Fetch user error:', error);
       logout();

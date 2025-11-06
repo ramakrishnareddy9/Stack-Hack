@@ -11,6 +11,7 @@ import AdminDashboard from './pages/Admin/Dashboard';
 import AdminEvents from './pages/Admin/Events';
 import AdminParticipations from './pages/Admin/Participations';
 import AdminReports from './pages/Admin/Reports';
+import CertificateConfig from './pages/Admin/CertificateConfig';
 import StudentDashboard from './pages/Student/Dashboard';
 import StudentEvents from './pages/Student/Events';
 import StudentProfile from './pages/Student/Profile';
@@ -57,6 +58,14 @@ function App() {
               element={
                 <PrivateRoute roles={['admin']}>
                   <AdminReports />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/certificates/:eventId"
+              element={
+                <PrivateRoute roles={['admin', 'faculty']}>
+                  <CertificateConfig />
                 </PrivateRoute>
               }
             />

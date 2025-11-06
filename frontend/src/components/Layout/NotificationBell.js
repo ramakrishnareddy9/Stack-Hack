@@ -103,7 +103,7 @@ const NotificationBell = () => {
                         </p>
                       )}
                       <p className="text-xs text-gray-400 mt-1">
-                        {format(new Date(notification.timestamp), 'MMM dd, yyyy HH:mm')}
+                        {notification.timestamp ? format(new Date(notification.timestamp), 'MMM dd, yyyy HH:mm') : 'Just now'}
                       </p>
                     </div>
                     {!notification.read && (

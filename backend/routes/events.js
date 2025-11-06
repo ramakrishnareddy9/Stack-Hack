@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const Event = require('../models/Event');
 const Participation = require('../models/Participation');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { auth, authorize } = require('../middleware/auth');
 const { sendNewEventNotification } = require('../utils/notifications');
 
@@ -207,8 +208,13 @@ router.post('/:id/publish', auth, async (req, res) => {
 
     await event.populate('organizer', 'name email');
 
+    console.log(`\n🎯 ===== PUBLISHING EVENT: ${event.title} =====`);
+    console.log(`   Event ID: ${event._id}`);
+    console.log(`   Status: ${event.status}`);
+
     // Send email notifications to ALL registered students when event is published
     try {
+      console.log('\n📋 Step 1: Fetching students...');
       // Get all registered students (active and with email addresses)
       const students = await User.find({ 
         role: 'student', 
@@ -216,72 +222,104 @@ router.post('/:id/publish', auth, async (req, res) => {
         email: { $exists: true, $ne: null, $ne: '' }
       }).select('email name _id');
       
-      console.log(`\n=== Publishing event: ${event.title} ===`);
-      console.log(`Found ${students.length} registered students with email addresses`);
+      console.log(`✅ Found ${students.length} registered students with email addresses`);
       
       if (students.length > 0) {
-        // Send emails to all registered students
-        sendNewEventNotification(event, students)
+        console.log('📧 Step 2: Starting email notifications...');
+        // Send emails to all registered students (await to ensure it starts)
+        const emailPromise = sendNewEventNotification(event, students)
           .then(results => {
             const successful = results.filter(r => r.success).length;
             const failed = results.filter(r => !r.success).length;
-            console.log(`\n📧 Email Summary: ${successful} sent successfully, ${failed} failed`);
+            console.log(`\n📊 Email Summary:`);
+            console.log(`   ✅ Successful: ${successful}`);
+            console.log(`   ❌ Failed: ${failed}`);
+            console.log(`   📧 Total attempted: ${results.length}`);
             if (failed > 0) {
-              console.error('Failed email sends:', results.filter(r => !r.success));
+              console.error('   Failed email sends:', results.filter(r => !r.success));
             }
+            return results;
           })
           .catch(error => {
-            console.error('❌ Error sending event notifications:', error);
+            console.error('❌ Error in email notification promise:', error);
+            console.error('   Stack:', error.stack);
+            throw error;
           });
+        
+        // Don't await, but ensure it starts
+        emailPromise.catch(err => console.error('Email promise error:', err));
 
+        console.log('🔔 Step 3: Starting WebSocket notifications...');
         // Send WebSocket notification to all connected students
         const io = req.app.get('io');
         if (io) {
-          let notificationsSent = 0;
-          students.forEach(student => {
-            const studentId = student._id.toString();
-            const roomName = `user-${studentId}`;
-            
-            console.log(`📤 Sending notification to room: ${roomName}`);
-            io.to(roomName).emit('new-event', {
-              type: 'new-event',
-              message: `New event: ${event.title}`,
-              event: {
-                id: event._id,
-                title: event.title,
-                eventType: event.eventType,
-                location: event.location,
-                startDate: event.startDate
-              },
-              timestamp: new Date()
-            });
-            notificationsSent++;
-          });
+          console.log(`   Socket.IO available. Connected clients: ${io.engine.clientsCount}`);
           
-          // Also broadcast to all connected sockets (for students who might have joined)
-          io.emit('new-event-broadcast', {
+          let notificationsSent = 0;
+          const notificationData = {
             type: 'new-event',
             message: `New event: ${event.title}`,
             event: {
-              id: event._id,
+              id: event._id.toString(),
               title: event.title,
               eventType: event.eventType,
               location: event.location,
               startDate: event.startDate
             },
             timestamp: new Date()
+          };
+
+          students.forEach(student => {
+            const studentId = student._id.toString();
+            const roomName = `user-${studentId}`;
+            
+            console.log(`   📤 Sending to room: ${roomName} (${student.name})`);
+            io.to(roomName).emit('new-event', notificationData);
+            notificationsSent++;
           });
           
-          console.log(`🔔 WebSocket notifications sent to ${notificationsSent} student rooms`);
-          console.log(`📢 Broadcast notification sent to all connected clients`);
+          // Also broadcast to all connected sockets (for students who might have joined)
+          console.log(`   📢 Broadcasting to all connected clients...`);
+          io.emit('new-event-broadcast', notificationData);
+          
+          // Store notifications in database for students who log in later
+          console.log(`💾 Storing notifications in database for offline students...`);
+          const notificationPromises = students.map(student => {
+            return Notification.create({
+              user: student._id,
+              type: 'new-event',
+              message: `New event: ${event.title}`,
+              data: {
+                eventId: event._id.toString(),
+                eventTitle: event.title,
+                eventType: event.eventType,
+                location: event.location,
+                startDate: event.startDate
+              },
+              read: false
+            }).catch(err => {
+              console.error(`   Failed to store notification for ${student.name}:`, err.message);
+            });
+          });
+          
+          await Promise.allSettled(notificationPromises);
+          console.log(`✅ Stored ${students.length} notifications in database`);
+          
+          console.log(`✅ WebSocket: Sent to ${notificationsSent} student rooms + broadcast`);
         } else {
-          console.log('⚠️ Socket.IO not available');
+          console.error('❌ Socket.IO NOT AVAILABLE!');
+          console.error('   This means WebSocket notifications will not work.');
         }
       } else {
-        console.log('⚠️ No students found with email addresses');
+        console.warn('⚠️ No students found with email addresses');
+        console.warn('   Email notifications will be skipped.');
       }
+      
+      console.log('\n🎯 ===== PUBLISH COMPLETE =====\n');
     } catch (error) {
-      console.error('❌ Error notifying students about new event:', error);
+      console.error('❌ CRITICAL ERROR in notification process:', error);
+      console.error('   Error message:', error.message);
+      console.error('   Stack trace:', error.stack);
       // Don't fail the request if notification fails
     }
 

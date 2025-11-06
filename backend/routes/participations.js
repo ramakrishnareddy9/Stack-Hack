@@ -2,6 +2,7 @@ const express = require('express');
 const Participation = require('../models/Participation');
 const Event = require('../models/Event');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { auth, authorize } = require('../middleware/auth');
 const { sendRegistrationConfirmation, sendApprovalNotification } = require('../utils/notifications');
 
@@ -189,6 +190,25 @@ router.put('/:id/approve', [auth, authorize('admin', 'faculty')], async (req, re
           ...notificationData,
           targetUserId: studentId
         });
+        
+        // Store notification in database for later access
+        try {
+          await Notification.create({
+            user: participation.student._id,
+            type: 'participation-approved',
+            message: notificationData.message,
+            data: {
+              participationId: participation._id.toString(),
+              eventId: participation.event._id.toString(),
+              eventTitle: participation.event.title,
+              status: participation.status
+            },
+            read: false
+          });
+          console.log(`💾 Notification stored in database for student ${studentId}`);
+        } catch (err) {
+          console.error(`❌ Failed to store notification:`, err.message);
+        }
         
         console.log(`🔔 WebSocket notification sent to student ${studentId}`);
       } else {
