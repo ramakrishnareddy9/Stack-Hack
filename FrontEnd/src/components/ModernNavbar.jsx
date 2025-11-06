@@ -53,6 +53,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import ModernNotificationBell from './Layout/ModernNotificationBell';
 import { useTheme as useThemeContext } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import nssLogo from '../assets/nss-logo.svg';
@@ -66,11 +67,9 @@ const ModernNavbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAuthenticated } = useAuth();
-  const { unreadCount } = useNotifications();
   const { mode, toggleColorMode } = useThemeContext();
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -90,14 +89,6 @@ const ModernNavbar = () => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleNotificationMenuOpen = (event) => {
-    setNotificationAnchor(event.currentTarget);
-  };
-
-  const handleNotificationMenuClose = () => {
-    setNotificationAnchor(null);
   };
 
   const handleDrawerToggle = () => {
@@ -413,26 +404,7 @@ const ModernNavbar = () => {
                   </MotionIconButton>
                 </Tooltip>
 
-                <Tooltip title="Notifications" arrow>
-                  <MotionIconButton
-                    color="inherit"
-                    onClick={handleNotificationMenuOpen}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Badge
-                      badgeContent={unreadCount}
-                      color="error"
-                      sx={{
-                        '& .MuiBadge-badge': {
-                          background: 'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)',
-                          animation: unreadCount > 0 ? 'pulse 2s infinite' : 'none',
-                        },
-                      }}
-                    >
-                      <NotificationsIcon />
-                    </Badge>
-                  </MotionIconButton>
-                </Tooltip>
+                {user?.role === 'student' && <ModernNotificationBell />}
 
                 <Tooltip title="Account" arrow>
                   <MotionIconButton
@@ -536,67 +508,6 @@ const ModernNavbar = () => {
                   </MenuItem>
                 </Menu>
 
-                {/* Notifications Menu */}
-                <Menu
-                  anchorEl={notificationAnchor}
-                  open={Boolean(notificationAnchor)}
-                  onClose={handleNotificationMenuClose}
-                  TransitionComponent={Grow}
-                  PaperProps={{
-                    sx: {
-                      borderRadius: '16px',
-                      width: 360,
-                      maxHeight: 480,
-                      mt: 1.5,
-                      backdropFilter: 'blur(20px)',
-                      backgroundColor: alpha(theme.palette.background.paper, 0.95),
-                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-                    },
-                  }}
-                >
-                  <Box className="p-4 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-gray-800 dark:to-gray-700">
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="h6" fontWeight={600}>
-                        Notifications
-                      </Typography>
-                      {unreadCount > 0 && (
-                        <Chip
-                          label={`${unreadCount} new`}
-                          size="small"
-                          className="bg-gradient-primary text-white"
-                        />
-                      )}
-                    </Stack>
-                  </Box>
-                  <Divider />
-                  <Box className="p-4">
-                    {unreadCount > 0 ? (
-                      <Stack spacing={2}>
-                        {/* Sample notification items */}
-                        <Paper className="p-3 hover:shadow-md transition-all duration-300 cursor-pointer">
-                          <Stack direction="row" spacing={2}>
-                            <CircleIcon className="text-primary-500 text-xs mt-1" />
-                            <Box flex={1}>
-                              <Typography variant="body2" fontWeight={500}>
-                                New event registration open
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                2 hours ago
-                              </Typography>
-                            </Box>
-                          </Stack>
-                        </Paper>
-                      </Stack>
-                    ) : (
-                      <Box className="text-center py-8">
-                        <NotificationsIcon className="text-gray-300 text-5xl mb-2" />
-                        <Typography variant="body2" color="text.secondary">
-                          No new notifications
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Menu>
               </Box>
             ) : (
               <Box className="flex gap-2">

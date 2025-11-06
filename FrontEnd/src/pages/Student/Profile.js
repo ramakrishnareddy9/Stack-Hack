@@ -3,7 +3,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { DocumentArrowDownIcon, PlusIcon } from '@heroicons/react/24/outline';
-import ContributionForm from '../../components/Student/ContributionForm';
+import ModernContributionForm from '../../components/Student/ModernContributionForm';
 
 const StudentProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -199,16 +199,15 @@ const StudentProfile = () => {
         </div>
       )}
 
-      {showContributionForm && selectedParticipation && (
-        <ContributionForm
-          participation={selectedParticipation}
-          onClose={() => {
-            setShowContributionForm(false);
-            setSelectedParticipation(null);
-          }}
-          onSuccess={handleContributionSuccess}
-        />
-      )}
+      <ModernContributionForm
+        participation={selectedParticipation}
+        open={showContributionForm && !!selectedParticipation}
+        onClose={() => {
+          setShowContributionForm(false);
+          setSelectedParticipation(null);
+        }}
+        onSuccess={handleContributionSuccess}
+      />
     </div>
   );
 };

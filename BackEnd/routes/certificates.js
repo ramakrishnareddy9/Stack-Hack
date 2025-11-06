@@ -6,6 +6,242 @@ const Student = require('../models/Student');
 const Event = require('../models/Event');
 const pdfService = require('../services/pdfService');
 const aiReportService = require('../services/aiReportService');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for PDF uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, '..', 'uploads', 'certificates');
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `template-${Date.now()}-${file.originalname}`);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// @route   GET /api/certificates/config/:eventId
+// @desc    Get certificate configuration for an event
+// @access  Admin/Faculty
+router.get('/config/:eventId', auth, authorize('admin'), async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    res.json({
+      eventTitle: event.title,
+      endDate: event.endDate,
+      certificate: event.certificateConfig || {
+        templateUrl: null,
+        fields: {
+          name: { x: 300, y: 250, fontSize: 24, color: '#000000' },
+          eventName: { x: 300, y: 350, fontSize: 20, color: '#000000' },
+          date: { x: 300, y: 450, fontSize: 18, color: '#000000' }
+        },
+        autoSend: true
+      }
+    });
+  } catch (error) {
+    console.error('Get certificate config error:', error);
+    res.status(500).json({ message: 'Failed to fetch configuration' });
+  }
+});
+
+// @route   POST /api/certificates/config/:eventId/upload
+// @desc    Upload certificate template for an event
+// @access  Admin/Faculty
+router.post('/config/:eventId/upload', auth, authorize('admin'), upload.single('template'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Save template URL to event
+    const templateUrl = `/uploads/certificates/${req.file.filename}`;
+    event.certificateConfig = event.certificateConfig || {};
+    event.certificateConfig.templateUrl = templateUrl;
+    await event.save();
+
+    res.json({
+      success: true,
+      templateUrl: templateUrl
+    });
+  } catch (error) {
+    console.error('Upload template error:', error);
+    res.status(500).json({ message: 'Failed to upload template' });
+  }
+});
+
+// @route   POST /api/certificates/config/:eventId
+// @desc    Save certificate configuration for an event
+// @access  Admin/Faculty
+router.post('/config/:eventId', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { fields, autoSend } = req.body;
+    
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Update certificate configuration
+    event.certificateConfig = {
+      ...event.certificateConfig,
+      fields,
+      autoSend
+    };
+
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Configuration saved successfully',
+      certificateConfig: event.certificateConfig
+    });
+  } catch (error) {
+    console.error('Save certificate config error:', error);
+    res.status(500).json({ message: 'Failed to save configuration' });
+  }
+});
+
+// @route   POST /api/certificates/test/:eventId
+// @desc    Generate test certificate for an event
+// @access  Admin/Faculty
+router.post('/test/:eventId', auth, authorize('admin'), async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Get a sample student for testing
+    const student = await Student.findOne().limit(1);
+    if (!student) {
+      return res.status(404).json({ message: 'No students found for testing' });
+    }
+
+    const certificateData = {
+      student: {
+        name: student.name,
+        registrationNumber: student.registrationNumber,
+        department: student.department
+      },
+      event: {
+        title: event.title,
+        eventType: event.eventType,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        hoursAwarded: event.hoursAwarded || 10
+      },
+      certificateId: `TEST-${Date.now()}`,
+      fields: event.certificateConfig?.fields,
+      templateUrl: event.certificateConfig?.templateUrl
+    };
+
+    const result = await pdfService.generateCertificate(certificateData);
+    
+    res.json({
+      success: true,
+      certificateUrl: result.url,
+      certificateId: result.certificateId
+    });
+  } catch (error) {
+    console.error('Test certificate error:', error);
+    res.status(500).json({ message: 'Failed to generate test certificate' });
+  }
+});
+
+// @route   POST /api/certificates/generate/:eventId
+// @desc    Generate and send certificates for all approved participants
+// @access  Admin/Faculty
+router.post('/generate/:eventId', auth, authorize('admin'), async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Find all approved participations for this event
+    const participations = await Participation.find({
+      event: req.params.eventId,
+      status: { $in: ['approved', 'completed'] }
+    }).populate('student');
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const participation of participations) {
+      try {
+        // Generate certificate
+        const certificateData = {
+          student: participation.student,
+          event: event,
+          certificateId: `NSS-${Date.now()}-${participation._id.toString().slice(-6)}`,
+          fields: event.certificateConfig?.fields,
+          templateUrl: event.certificateConfig?.templateUrl
+        };
+
+        const result = await pdfService.generateCertificate(certificateData);
+        
+        // Save certificate URL to participation
+        participation.certificateUrl = result.url;
+        participation.certificateId = result.certificateId;
+        await participation.save();
+
+        // Send email if autoSend is enabled
+        if (event.certificateConfig?.autoSend) {
+          const { sendCertificateEmail } = require('../utils/certificateGenerator');
+          await sendCertificateEmail(
+            participation.student.email,
+            participation.student.name,
+            event.title,
+            result.url
+          );
+        }
+
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          student: participation.student.name,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: 'Certificate generation completed',
+      ...results
+    });
+  } catch (error) {
+    console.error('Generate certificates error:', error);
+    res.status(500).json({ message: 'Failed to generate certificates' });
+  }
+});
 
 // @route   GET /api/certificates/my
 // @desc    Get all certificates for logged-in student

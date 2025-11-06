@@ -6,7 +6,17 @@ const path = require('path');
 const http = require('http');
 const { initializeCertificateScheduler } = require('./utils/certificateScheduler');
 
-dotenv.config();
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Log environment status (without sensitive data)
+console.log('\n🔧 Environment Configuration:');
+console.log(`   MongoDB URI: ${process.env.MONGODB_URI ? '✅ Set' : '❌ Not set'}`);
+console.log(`   JWT Secret: ${process.env.JWT_SECRET ? '✅ Set' : '❌ Not set'}`);
+console.log(`   Email User: ${process.env.EMAIL_USER ? '✅ Set (' + process.env.EMAIL_USER + ')' : '❌ Not set'}`);
+console.log(`   Email Pass: ${process.env.EMAIL_PASS ? '✅ Set' : '❌ Not set'}`);
+console.log(`   Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+console.log('');
 
 const app = express();
 const server = http.createServer(app);

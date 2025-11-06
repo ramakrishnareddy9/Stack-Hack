@@ -585,8 +585,19 @@ const AdminDashboard = () => {
                   setDialogType('bulkEmail');
                   setOpenDialog(true);
                 }}
+                sx={{ mr: 2 }}
               >
                 Send Bulk Email
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<PeopleIcon />}
+                onClick={() => navigate('/admin/students')}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                }}
+              >
+                Manage Students
               </Button>
             </Box>
           </Box>

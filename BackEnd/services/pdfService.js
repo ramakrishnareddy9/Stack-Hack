@@ -24,7 +24,8 @@ class PDFService {
    * Generate participation certificate
    */
   async generateCertificate(data) {
-    const { student, event, coordinator, certificateId, description } = data;
+    const { student, event, certificateId, description } = data;
+    const coordinator = data.coordinator || { name: 'NSS Coordinator' };
     const filename = `certificate_${certificateId}_${Date.now()}.pdf`;
     const filepath = path.join(this.certificatesDir, filename);
 

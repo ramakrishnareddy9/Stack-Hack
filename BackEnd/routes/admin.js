@@ -291,6 +291,309 @@ router.get('/event-analytics', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/students
+// @desc    Get all students with pagination and filters
+// @access  Admin/Faculty
+router.get('/students', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      department = '',
+      year = '',
+      sortBy = 'name',
+      sortOrder = 'asc'
+    } = req.query;
+
+    // Build filter query
+    const filter = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { registrationNumber: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (department) filter.department = department;
+    if (year) filter.year = parseInt(year);
+
+    // Execute query with pagination
+    const students = await Student.find(filter)
+      .select('-password')
+      .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const count = await Student.countDocuments(filter);
+
+    res.json({
+      students,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      totalStudents: count
+    });
+  } catch (error) {
+    console.error('Get students error:', error);
+    res.status(500).json({ message: 'Failed to fetch students' });
+  }
+});
+
+// @route   GET /api/admin/students/:id
+// @desc    Get single student details
+// @access  Admin/Faculty
+router.get('/students/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id).select('-password');
+    
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Get participations
+    const participations = await Participation.find({ student: req.params.id })
+      .populate('event', 'title eventType startDate endDate hoursAwarded');
+
+    res.json({
+      ...student.toObject(),
+      participations
+    });
+  } catch (error) {
+    console.error('Get student error:', error);
+    res.status(500).json({ message: 'Failed to fetch student' });
+  }
+});
+
+// @route   POST /api/admin/students
+// @desc    Create new student
+// @access  Admin
+router.post('/students', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { 
+      registrationNumber, 
+      name, 
+      email, 
+      password, 
+      department, 
+      year,
+      phoneNumber 
+    } = req.body;
+
+    // Check if student already exists
+    const existingStudent = await Student.findOne({
+      $or: [
+        { registrationNumber },
+        { email }
+      ]
+    });
+
+    if (existingStudent) {
+      return res.status(400).json({ 
+        message: 'Student with this registration number or email already exists' 
+      });
+    }
+
+    // Create new student
+    const student = new Student({
+      registrationNumber,
+      name,
+      email,
+      password,
+      department,
+      year,
+      phoneNumber,
+      attendancePercentage: 0,
+      totalVolunteerHours: 0,
+      isEligible: false
+    });
+
+    await student.save();
+
+    // Create corresponding User record
+    const user = new User({
+      name,
+      email,
+      password,
+      role: 'student',
+      _id: student._id
+    });
+    
+    await user.save();
+
+    res.status(201).json({
+      message: 'Student created successfully',
+      student: {
+        ...student.toObject(),
+        password: undefined
+      }
+    });
+  } catch (error) {
+    console.error('Create student error:', error);
+    res.status(500).json({ message: 'Failed to create student' });
+  }
+});
+
+// @route   PUT /api/admin/students/:id
+// @desc    Update student details
+// @access  Admin
+router.put('/students/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { 
+      name, 
+      email, 
+      department, 
+      year, 
+      phoneNumber,
+      attendancePercentage,
+      totalVolunteerHours,
+      isEligible 
+    } = req.body;
+
+    const student = await Student.findById(req.params.id);
+    
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Check email uniqueness if changed
+    if (email && email !== student.email) {
+      const emailExists = await Student.findOne({ email, _id: { $ne: req.params.id } });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+
+    // Update fields
+    if (name) student.name = name;
+    if (email) student.email = email;
+    if (department) student.department = department;
+    if (year) student.year = year;
+    if (phoneNumber) student.phoneNumber = phoneNumber;
+    if (attendancePercentage !== undefined) student.attendancePercentage = attendancePercentage;
+    if (totalVolunteerHours !== undefined) student.totalVolunteerHours = totalVolunteerHours;
+    if (isEligible !== undefined) student.isEligible = isEligible;
+
+    await student.save();
+
+    // Update corresponding User record
+    await User.findByIdAndUpdate(req.params.id, { 
+      name: student.name, 
+      email: student.email 
+    });
+
+    res.json({
+      message: 'Student updated successfully',
+      student: {
+        ...student.toObject(),
+        password: undefined
+      }
+    });
+  } catch (error) {
+    console.error('Update student error:', error);
+    res.status(500).json({ message: 'Failed to update student' });
+  }
+});
+
+// @route   DELETE /api/admin/students/:id
+// @desc    Delete student
+// @access  Admin
+router.delete('/students/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Delete related data
+    await Participation.deleteMany({ student: req.params.id });
+    await User.findByIdAndDelete(req.params.id);
+    await student.deleteOne();
+
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    console.error('Delete student error:', error);
+    res.status(500).json({ message: 'Failed to delete student' });
+  }
+});
+
+// @route   POST /api/admin/students/import
+// @desc    Bulk import students from CSV/Excel
+// @access  Admin
+router.post('/students/import', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { students } = req.body;
+    
+    if (!students || !Array.isArray(students)) {
+      return res.status(400).json({ message: 'Invalid data format' });
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const studentData of students) {
+      try {
+        const { registrationNumber, name, email, department, year } = studentData;
+        
+        // Check if student exists
+        const exists = await Student.findOne({
+          $or: [{ registrationNumber }, { email }]
+        });
+
+        if (exists) {
+          results.errors.push(`Student ${registrationNumber} already exists`);
+          results.failed++;
+          continue;
+        }
+
+        // Generate default password
+        const defaultPassword = registrationNumber.toLowerCase();
+
+        // Create student
+        const student = new Student({
+          registrationNumber,
+          name,
+          email,
+          password: defaultPassword,
+          department,
+          year,
+          attendancePercentage: 0,
+          totalVolunteerHours: 0,
+          isEligible: false
+        });
+
+        await student.save();
+
+        // Create User record
+        const user = new User({
+          name,
+          email,
+          password: defaultPassword,
+          role: 'student',
+          _id: student._id
+        });
+        
+        await user.save();
+        results.success++;
+      } catch (error) {
+        results.errors.push(`Failed to import ${studentData.registrationNumber}: ${error.message}`);
+        results.failed++;
+      }
+    }
+
+    res.json({
+      message: 'Import completed',
+      ...results
+    });
+  } catch (error) {
+    console.error('Import students error:', error);
+    res.status(500).json({ message: 'Failed to import students' });
+  }
+});
+
 // @route   GET /api/admin/student-analytics
 // @desc    Get detailed student analytics
 // @access  Admin/Faculty

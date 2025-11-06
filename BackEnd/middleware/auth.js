@@ -3,7 +3,12 @@ const User = require('../models/User');
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Support both Authorization Bearer token and x-auth-token header
+    let token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      token = req.header('x-auth-token');
+    }
     
     if (!token) {
       return res.status(401).json({ message: 'No token, authorization denied' });
@@ -12,13 +17,16 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     const user = await User.findById(decoded.id).select('-password');
     
-    if (!user || !user.isActive) {
+    if (!user) {
       return res.status(401).json({ message: 'User not found or inactive' });
     }
 
+    // Set both user and id for compatibility
     req.user = user;
+    req.user.id = user._id.toString();
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     res.status(401).json({ message: 'Token is not valid' });
   }
 };

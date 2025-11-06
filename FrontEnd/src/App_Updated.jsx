@@ -20,6 +20,11 @@ import CreateEvent from './pages/CreateEvent';
 import AdminEvents from './pages/Admin/Events';
 import AdminParticipations from './pages/Admin/Participations';
 import AdminReports from './pages/Admin/Reports';
+import CertificateConfig from './pages/Admin/CertificateConfig';
+import ManageStudents from './pages/Admin/ManageStudents';
+
+// Faculty Pages
+import FacultyModernDashboard from './pages/Faculty/ModernDashboard';
 
 // Student Pages
 import StudentDashboard from './pages/StudentDashboard';
@@ -33,6 +38,7 @@ import EvidenceUpload from './components/EvidenceUpload';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { SocketProvider } from './context/SocketContext';
 import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
@@ -40,8 +46,9 @@ function App() {
     <ThemeProvider>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <NotificationProvider>
-            <Router>
+          <SocketProvider>
+            <NotificationProvider>
+              <Router>
               <Box className="min-h-screen flex flex-col" sx={{ bgcolor: 'background.default' }}>
                 <ModernNavbar />
                 
@@ -97,6 +104,40 @@ function App() {
                       element={
                         <PrivateRoute roles={['admin', 'faculty']}>
                           <AdminReports />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/certificates/:eventId"
+                      element={
+                        <PrivateRoute roles={['admin', 'faculty']}>
+                          <CertificateConfig />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/students"
+                      element={
+                        <PrivateRoute roles={['admin', 'faculty']}>
+                          <ManageStudents />
+                        </PrivateRoute>
+                      }
+                    />
+                    
+                    {/* Faculty Routes */}
+                    <Route
+                      path="/faculty/dashboard"
+                      element={
+                        <PrivateRoute roles={['faculty']}>
+                          <FacultyModernDashboard />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/faculty"
+                      element={
+                        <PrivateRoute roles={['faculty']}>
+                          <FacultyModernDashboard />
                         </PrivateRoute>
                       }
                     />
@@ -192,8 +233,9 @@ function App() {
                   },
                 }}
               />
-            </Router>
-          </NotificationProvider>
+              </Router>
+            </NotificationProvider>
+          </SocketProvider>
         </AuthProvider>
       </LocalizationProvider>
     </ThemeProvider>

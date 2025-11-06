@@ -70,6 +70,15 @@ const eventSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  certificateConfig: {
+    templateUrl: String,
+    fields: {
+      name: { x: Number, y: Number, fontSize: Number, color: String },
+      eventName: { x: Number, y: Number, fontSize: Number, color: String },
+      date: { x: Number, y: Number, fontSize: Number, color: String }
+    },
+    autoSend: { type: Boolean, default: true }
+  },
   approvalRequired: {
     type: Boolean,
     default: true

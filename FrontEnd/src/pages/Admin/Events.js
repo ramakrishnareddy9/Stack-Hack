@@ -6,9 +6,10 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
-import EventModal from '../../components/Admin/EventModal';
+import ModernEventModal from '../../components/Admin/ModernEventModal';
 
 const AdminEvents = () => {
   const [events, setEvents] = useState([]);
@@ -119,28 +120,37 @@ const AdminEvents = () => {
                 <span>{new Date(event.startDate).toLocaleDateString()}</span>
                 <span>{event.currentParticipants}/{event.maxParticipants || '∞'}</span>
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEdit(event)}
-                  className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <PencilIcon className="h-4 w-4 mr-1" />
-                  Edit
-                </button>
-                {event.status === 'draft' && (
+              <div className="flex flex-col space-y-2">
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => handlePublish(event._id)}
-                    className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    onClick={() => handleEdit(event)}
+                    className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                   >
-                    Publish
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    Edit
                   </button>
-                )}
-                <button
-                  onClick={() => handleDelete(event._id)}
-                  className="inline-flex justify-center items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                  {event.status === 'draft' && (
+                    <button
+                      onClick={() => handlePublish(event._id)}
+                      className="flex-1 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    >
+                      Publish
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(event._id)}
+                    className="inline-flex justify-center items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                <Link
+                  to={`/admin/certificates/${event._id}`}
+                  className="w-full inline-flex justify-center items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
                 >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                  <DocumentTextIcon className="h-4 w-4 mr-1" />
+                  Certificate Config
+                </Link>
               </div>
             </div>
           </div>
@@ -153,12 +163,11 @@ const AdminEvents = () => {
         </div>
       )}
 
-      {isModalOpen && (
-        <EventModal
-          event={selectedEvent}
-          onClose={handleModalClose}
-        />
-      )}
+      <ModernEventModal
+        event={selectedEvent}
+        open={isModalOpen}
+        onClose={handleModalClose}
+      />
     </div>
   );
 };
