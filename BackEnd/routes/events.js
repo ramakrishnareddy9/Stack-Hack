@@ -8,6 +8,39 @@ const { sendNewEventNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
+// @route   GET /api/events/upcoming
+// @desc    Get upcoming events for students
+// @access  Private
+router.get('/upcoming', auth, async (req, res) => {
+  try {
+    const query = {
+      status: { $in: ['published', 'ongoing'] },
+      registrationDeadline: { $gte: new Date() },
+      startDate: { $gte: new Date() }
+    };
+
+    const events = await Event.find(query)
+      .populate('organizer', 'name email')
+      .sort({ startDate: 1 });
+
+    // Add participation status for students
+    if (req.user.role === 'student') {
+      for (let event of events) {
+        const participation = await Participation.findOne({
+          student: req.user.id,
+          event: event._id
+        });
+        event._doc.participationStatus = participation ? participation.status : null;
+      }
+    }
+
+    res.json(events);
+  } catch (error) {
+    console.error('Get upcoming events error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/events
 // @desc    Get all events (with filters)
 // @access  Public (for students), Private (for admin/faculty)
@@ -98,7 +131,7 @@ router.get('/:id', auth, async (req, res) => {
 // @access  Private (Admin/Faculty only)
 router.post('/', [
   auth,
-  authorize('admin', 'faculty'),
+  authorize('admin'),
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('eventType').isIn(['tree plantation', 'blood donation', 'cleanliness drive', 'awareness campaign', 'health camp', 'other']).withMessage('Invalid event type'),
@@ -295,7 +328,7 @@ router.post('/:id/publish', auth, async (req, res) => {
 // @route   PUT /api/events/:id
 // @desc    Update event
 // @access  Private (Admin/Faculty only)
-router.put('/:id', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.put('/:id', [auth, authorize('admin')], async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
 

@@ -58,7 +58,7 @@ if (cron) {
 // @route   POST /api/notifications/send-reminder
 // @desc    Manually send event reminder
 // @access  Private (Admin/Faculty)
-router.post('/send-reminder', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.post('/send-reminder', [auth, authorize('admin')], async (req, res) => {
   try {
     const { eventId, daysBefore = 1 } = req.body;
 

@@ -28,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files statically (for local storage fallback)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/generated', express.static(path.join(__dirname, 'generated')));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -42,6 +43,7 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/certificates', require('./routes/certificates'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/test-pdf', require('./routes/test-pdf'));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nss-portal', {

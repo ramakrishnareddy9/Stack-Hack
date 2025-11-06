@@ -15,7 +15,7 @@ const router = express.Router();
 // @route   GET /api/reports/event/:id
 // @desc    Generate event report PDF
 // @access  Private (Admin/Faculty)
-router.get('/event/:id', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.get('/event/:id', [auth, authorize('admin')], async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
       .populate('organizer', 'name email')

@@ -27,7 +27,7 @@ const upload = multer({
 // @route   POST /api/attendance/import
 // @desc    Import attendance from Excel/CSV file
 // @access  Admin/Faculty
-router.post('/import', auth, authorize('admin', 'faculty'), upload.single('file'), async (req, res) => {
+router.post('/import', auth, authorize('admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -94,7 +94,7 @@ router.get('/eligibility/:studentId', auth, async (req, res) => {
 // @route   PUT /api/attendance/update/:studentId
 // @desc    Update student attendance manually
 // @access  Admin/Faculty
-router.put('/update/:studentId', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.put('/update/:studentId', auth, authorize('admin'), async (req, res) => {
   try {
     const { presentDays, totalDays } = req.body;
 
@@ -127,7 +127,7 @@ router.put('/update/:studentId', auth, authorize('admin', 'faculty'), async (req
 // @route   GET /api/attendance/report
 // @desc    Generate attendance report
 // @access  Admin/Faculty
-router.get('/report', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/report', auth, authorize('admin'), async (req, res) => {
   try {
     const filters = {
       department: req.query.department,
@@ -146,7 +146,7 @@ router.get('/report', auth, authorize('admin', 'faculty'), async (req, res) => {
 // @route   GET /api/attendance/below-threshold
 // @desc    Get students below attendance threshold
 // @access  Admin/Faculty
-router.get('/below-threshold', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/below-threshold', auth, authorize('admin'), async (req, res) => {
   try {
     const threshold = req.query.threshold ? parseFloat(req.query.threshold) : 75;
     const result = await attendanceService.getStudentsBelowThreshold(threshold);
@@ -159,7 +159,7 @@ router.get('/below-threshold', auth, authorize('admin', 'faculty'), async (req, 
 // @route   POST /api/attendance/bulk-check
 // @desc    Check eligibility for multiple students
 // @access  Admin/Faculty
-router.post('/bulk-check', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.post('/bulk-check', auth, authorize('admin'), async (req, res) => {
   try {
     const { studentIds } = req.body;
 

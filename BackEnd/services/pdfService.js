@@ -138,20 +138,46 @@ class PDFService {
 
         stream.on('finish', async () => {
           try {
-            // Upload to Cloudinary
-            const uploadResult = await this.uploadToCloudinary(filepath, 'certificates');
-            
-            // Delete local file after upload
-            fs.unlinkSync(filepath);
-            
-            resolve({
-              success: true,
-              url: uploadResult.secure_url,
-              publicId: uploadResult.public_id,
-              certificateId: certificateId
-            });
-          } catch (uploadError) {
-            reject(uploadError);
+            // Try to upload to Cloudinary if configured
+            if (process.env.CLOUDINARY_CLOUD_NAME && 
+                process.env.CLOUDINARY_CLOUD_NAME !== 'demo') {
+              try {
+                const uploadResult = await this.uploadToCloudinary(filepath, 'certificates');
+                
+                // Delete local file after successful upload
+                fs.unlinkSync(filepath);
+                
+                resolve({
+                  success: true,
+                  url: uploadResult.secure_url,
+                  publicId: uploadResult.public_id,
+                  certificateId: certificateId
+                });
+              } catch (uploadError) {
+                console.warn('Cloudinary upload failed, using local storage:', uploadError.message);
+                // Fallback to local storage
+                const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/certificates/${filename}`;
+                resolve({
+                  success: true,
+                  url: localUrl,
+                  publicId: null,
+                  certificateId: certificateId,
+                  local: true
+                });
+              }
+            } else {
+              // Use local storage if Cloudinary not configured
+              const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/certificates/${filename}`;
+              resolve({
+                success: true,
+                url: localUrl,
+                publicId: null,
+                certificateId: certificateId,
+                local: true
+              });
+            }
+          } catch (error) {
+            reject(error);
           }
         });
 
@@ -292,19 +318,38 @@ class PDFService {
 
         stream.on('finish', async () => {
           try {
-            // Upload to Cloudinary
-            const uploadResult = await this.uploadToCloudinary(filepath, 'reports');
-            
-            // Delete local file
-            fs.unlinkSync(filepath);
-            
-            resolve({
-              success: true,
-              url: uploadResult.secure_url,
-              publicId: uploadResult.public_id
-            });
-          } catch (uploadError) {
-            reject(uploadError);
+            // Try to upload to Cloudinary if configured
+            if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_CLOUD_NAME !== 'demo') {
+              try {
+                const uploadResult = await this.uploadToCloudinary(filepath, 'reports');
+                fs.unlinkSync(filepath);
+                
+                resolve({
+                  success: true,
+                  url: uploadResult.secure_url,
+                  publicId: uploadResult.public_id
+                });
+              } catch (uploadError) {
+                console.warn('Cloudinary upload failed, using local storage:', uploadError.message);
+                const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/reports/${filename}`;
+                resolve({
+                  success: true,
+                  url: localUrl,
+                  publicId: null,
+                  local: true
+                });
+              }
+            } else {
+              const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/reports/${filename}`;
+              resolve({
+                success: true,
+                url: localUrl,
+                publicId: null,
+                local: true
+              });
+            }
+          } catch (error) {
+            reject(error);
           }
         });
 
@@ -436,16 +481,38 @@ class PDFService {
 
         stream.on('finish', async () => {
           try {
-            const uploadResult = await this.uploadToCloudinary(filepath, 'annual-reports');
-            fs.unlinkSync(filepath);
-            
-            resolve({
-              success: true,
-              url: uploadResult.secure_url,
-              publicId: uploadResult.public_id
-            });
-          } catch (uploadError) {
-            reject(uploadError);
+            // Try to upload to Cloudinary if configured
+            if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_CLOUD_NAME !== 'demo') {
+              try {
+                const uploadResult = await this.uploadToCloudinary(filepath, 'annual-reports');
+                fs.unlinkSync(filepath);
+                
+                resolve({
+                  success: true,
+                  url: uploadResult.secure_url,
+                  publicId: uploadResult.public_id
+                });
+              } catch (uploadError) {
+                console.warn('Cloudinary upload failed, using local storage:', uploadError.message);
+                const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/reports/${filename}`;
+                resolve({
+                  success: true,
+                  url: localUrl,
+                  publicId: null,
+                  local: true
+                });
+              }
+            } else {
+              const localUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/generated/reports/${filename}`;
+              resolve({
+                success: true,
+                url: localUrl,
+                publicId: null,
+                local: true
+              });
+            }
+          } catch (error) {
+            reject(error);
           }
         });
 

@@ -33,11 +33,14 @@ import {
   AdminPanelSettings as AdminIcon,
   School as SchoolIcon,
   Close as CloseIcon,
-  Home as HomeIcon
+  Home as HomeIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme as useThemeContext } from '../context/ThemeContext';
 
 const Navbar = () => {
   const theme = useTheme();
@@ -46,6 +49,7 @@ const Navbar = () => {
   const location = useLocation();
   const { user, logout, isAuthenticated } = useAuth();
   const { unreadCount } = useNotifications();
+  const { mode, toggleColorMode } = useThemeContext();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
@@ -98,7 +102,7 @@ const Navbar = () => {
     { text: 'Profile', icon: <PersonIcon />, path: '/profile' }
   ];
 
-  const menuItems = user?.role === 'admin' || user?.role === 'faculty' ? adminMenuItems : studentMenuItems;
+  const menuItems = user?.role === 'admin' ? adminMenuItems : studentMenuItems;
 
   const drawer = (
     <Box sx={{ width: 250 }}>
@@ -121,7 +125,7 @@ const Navbar = () => {
             <Chip
               label={user?.role}
               size="small"
-              color={user?.role === 'admin' ? 'error' : user?.role === 'faculty' ? 'warning' : 'primary'}
+              color={user?.role === 'admin' ? 'error' : 'primary'}
               sx={{ mt: 1 }}
             />
           </Box>
@@ -145,6 +149,12 @@ const Navbar = () => {
               </ListItem>
             ))}
             <Divider sx={{ my: 1 }} />
+            <ListItem button onClick={toggleColorMode}>
+              <ListItemIcon>
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </ListItemIcon>
+              <ListItemText primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'} />
+            </ListItem>
             <ListItem button onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon />
@@ -219,6 +229,12 @@ const Navbar = () => {
 
           {isAuthenticated ? (
             <>
+              <Tooltip title="Toggle Dark Mode">
+                <IconButton color="inherit" onClick={toggleColorMode}>
+                  {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
+
               <Tooltip title="Notifications">
                 <IconButton color="inherit" onClick={handleNotificationMenuOpen}>
                   <Badge badgeContent={unreadCount} color="error">
@@ -250,7 +266,7 @@ const Navbar = () => {
                   <Chip
                     label={user?.role}
                     size="small"
-                    color={user?.role === 'admin' ? 'error' : user?.role === 'faculty' ? 'warning' : 'primary'}
+                    color={user?.role === 'admin' ? 'error' : 'primary'}
                     sx={{ mt: 1 }}
                   />
                 </Box>
@@ -261,7 +277,7 @@ const Navbar = () => {
                   </ListItemIcon>
                   Profile
                 </MenuItem>
-                {(user?.role === 'admin' || user?.role === 'faculty') && (
+                {user?.role === 'admin' && (
                   <MenuItem onClick={() => handleNavigation('/admin/dashboard')}>
                     <ListItemIcon>
                       <AdminIcon fontSize="small" />

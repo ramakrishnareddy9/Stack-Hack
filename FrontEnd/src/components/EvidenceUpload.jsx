@@ -47,8 +47,12 @@ import {
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const EvidenceUpload = ({ participationId, eventDetails, onSubmitSuccess }) => {
+const EvidenceUpload = ({ participationId: propParticipationId, eventDetails: propEventDetails, onSubmitSuccess }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const participationId = propParticipationId || id;
   const [files, setFiles] = useState([]);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,11 +62,15 @@ const EvidenceUpload = ({ participationId, eventDetails, onSubmitSuccess }) => {
   const [openPreview, setOpenPreview] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [existingEvidence, setExistingEvidence] = useState([]);
+  const [eventDetails, setEventDetails] = useState(propEventDetails || null);
 
   const steps = ['Upload Evidence', 'Add Description', 'Review & Submit'];
 
   useEffect(() => {
-    fetchExistingEvidence();
+    if (participationId) {
+      fetchExistingEvidence();
+      fetchEventDetails();
+    }
   }, [participationId]);
 
   const fetchExistingEvidence = async () => {
@@ -75,6 +83,23 @@ const EvidenceUpload = ({ participationId, eventDetails, onSubmitSuccess }) => {
       setExistingEvidence(response.data.evidence || []);
     } catch (error) {
       console.error('Failed to fetch existing evidence:', error);
+    }
+  };
+
+  const fetchEventDetails = async () => {
+    if (eventDetails) return; // Use provided eventDetails if available
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `/api/participations/${participationId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.event) {
+        setEventDetails(response.data.event);
+      }
+    } catch (error) {
+      console.error('Failed to fetch event details:', error);
     }
   };
 

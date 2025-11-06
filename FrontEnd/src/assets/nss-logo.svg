@@ -1,0 +1,21 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- NSS Logo Circle -->
+  <circle cx="60" cy="60" r="58" fill="#FF6B35" stroke="#1A1A2E" stroke-width="2"/>
+  
+  <!-- Inner Circle -->
+  <circle cx="60" cy="60" r="50" fill="#FFF" stroke="#FF6B35" stroke-width="2"/>
+  
+  <!-- NSS Text -->
+  <text x="60" y="50" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FF6B35" text-anchor="middle">NSS</text>
+  
+  <!-- Hands Symbol -->
+  <path d="M 35 70 Q 40 65 45 70 L 50 75 Q 55 80 60 75 Q 65 80 70 75 L 75 70 Q 80 65 85 70" 
+        stroke="#FF6B35" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Stars -->
+  <path d="M 30 35 L 32 40 L 37 40 L 33 43 L 35 48 L 30 45 L 25 48 L 27 43 L 23 40 L 28 40 Z" fill="#FF6B35"/>
+  <path d="M 90 35 L 92 40 L 97 40 L 93 43 L 95 48 L 90 45 L 85 48 L 87 43 L 83 40 L 88 40 Z" fill="#FF6B35"/>
+  
+  <!-- Bottom Text -->
+  <text x="60" y="95" font-family="Arial, sans-serif" font-size="8" fill="#1A1A2E" text-anchor="middle">NOT ME BUT YOU</text>
+</svg>

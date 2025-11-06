@@ -27,7 +27,7 @@ const StudentEvents = () => {
 
   const handleRegister = async (eventId) => {
     try {
-      await api.post('/participations', { eventId });
+      await api.post('/participations/register', { eventId });
       toast.success('Registration successful! Waiting for approval.');
       fetchEvents();
     } catch (error) {

@@ -20,7 +20,7 @@ router.post('/register', [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Please provide a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').isIn(['admin', 'faculty', 'student']).withMessage('Invalid role'),
+  body('role').isIn(['admin', 'student']).withMessage('Invalid role'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -124,6 +124,19 @@ router.post('/login', [
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
+  }
+});
+
+// @route   GET /api/auth/profile
+// @desc    Get current user profile (alias for /me)
+// @access  Private
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

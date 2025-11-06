@@ -101,6 +101,12 @@ const AdminDashboard = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [emailData, setEmailData] = useState({
+    recipients: 'all',
+    subject: '',
+    message: ''
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -185,6 +191,19 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteEvent = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Event deleted successfully');
+      fetchDashboardData();
+    } catch (error) {
+      toast.error('Failed to delete event');
+    }
+  };
+
   const handleGenerateReport = async (type) => {
     try {
       const token = localStorage.getItem('token');
@@ -208,6 +227,29 @@ const AdminDashboard = () => {
       toast.success('Report generated successfully');
     } catch (error) {
       toast.error('Failed to generate report');
+    }
+  };
+
+  const handleSendBulkEmail = async () => {
+    if (!emailData.subject.trim() || !emailData.message.trim()) {
+      toast.error('Please fill in both subject and message');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        '/api/admin/send-bulk-email',
+        emailData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      toast.success('Bulk email sent successfully');
+      setEmailData({ recipients: 'all', subject: '', message: '' });
+      setOpenDialog(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send bulk email');
     }
   };
 
@@ -498,7 +540,11 @@ const AdminDashboard = () => {
                       <IconButton onClick={() => navigate(`/admin/event/${event._id}`)}>
                         <EditIcon />
                       </IconButton>
-                      <IconButton color="error">
+                      <IconButton color="error" onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this event?')) {
+                          handleDeleteEvent(event._id);
+                        }
+                      }}>
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>
@@ -731,6 +777,8 @@ const AdminDashboard = () => {
               rows={4}
               label="Rejection Reason"
               placeholder="Please provide a reason for rejection..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
               sx={{ mt: 2 }}
             />
           )}
@@ -738,7 +786,11 @@ const AdminDashboard = () => {
             <Box>
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Recipients</InputLabel>
-                <Select defaultValue="all">
+                <Select 
+                  value={emailData.recipients}
+                  onChange={(e) => setEmailData({ ...emailData, recipients: e.target.value })}
+                  label="Recipients"
+                >
                   <MenuItem value="all">All Students</MenuItem>
                   <MenuItem value="eligible">Eligible Students Only</MenuItem>
                   <MenuItem value="notEligible">Non-Eligible Students</MenuItem>
@@ -747,6 +799,8 @@ const AdminDashboard = () => {
               <TextField
                 fullWidth
                 label="Subject"
+                value={emailData.subject}
+                onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -755,14 +809,29 @@ const AdminDashboard = () => {
                 rows={6}
                 label="Message"
                 placeholder="Enter your message here..."
+                value={emailData.message}
+                onChange={(e) => setEmailData({ ...emailData, message: e.target.value })}
               />
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setOpenDialog(false);
+            setRejectionReason('');
+            setEmailData({ recipients: 'all', subject: '', message: '' });
+          }}>Cancel</Button>
           <Button variant="contained" onClick={() => {
-            // Handle dialog actions
+            if (dialogType === 'reject') {
+              if (!rejectionReason.trim()) {
+                toast.error('Please provide a rejection reason');
+                return;
+              }
+              handleRejectParticipation(selectedParticipation._id, rejectionReason);
+              setRejectionReason('');
+            } else if (dialogType === 'bulkEmail') {
+              handleSendBulkEmail();
+            }
             setOpenDialog(false);
           }}>
             {dialogType === 'reject' ? 'Reject' : 'Confirm'}

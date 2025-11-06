@@ -132,7 +132,7 @@ router.get('/verify/:verificationId', async (req, res) => {
 // @route   POST /api/certificates/generate-bulk
 // @desc    Generate certificates for multiple participations
 // @access  Admin/Faculty
-router.post('/generate-bulk', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.post('/generate-bulk', auth, authorize('admin'), async (req, res) => {
   try {
     const { participationIds } = req.body;
 

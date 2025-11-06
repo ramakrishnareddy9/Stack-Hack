@@ -376,7 +376,7 @@ router.post('/request-certificate/:participationId', auth, async (req, res) => {
 // @route   GET /api/students/all
 // @desc    Get all students (admin)
 // @access  Admin/Faculty
-router.get('/all', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/all', auth, authorize('admin'), async (req, res) => {
   try {
     const { department, year, eligibility } = req.query;
     
@@ -400,7 +400,7 @@ router.get('/all', auth, authorize('admin', 'faculty'), async (req, res) => {
 // @route   PUT /api/students/:id/attendance
 // @desc    Update student attendance (admin)
 // @access  Admin/Faculty
-router.put('/:id/attendance', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.put('/:id/attendance', auth, authorize('admin'), async (req, res) => {
   try {
     const { presentDays, totalDays } = req.body;
     

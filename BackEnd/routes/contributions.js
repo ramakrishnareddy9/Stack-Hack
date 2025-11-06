@@ -122,7 +122,7 @@ router.post('/', [
 // @route   PUT /api/contributions/:id/verify
 // @desc    Verify contribution
 // @access  Private (Admin/Faculty only)
-router.put('/:id/verify', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.put('/:id/verify', [auth, authorize('admin')], async (req, res) => {
   try {
     const contribution = await Contribution.findById(req.params.id);
 

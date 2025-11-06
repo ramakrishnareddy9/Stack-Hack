@@ -7,6 +7,120 @@ const { sendRegistrationConfirmation, sendApprovalNotification } = require('../u
 
 const router = express.Router();
 
+// @route   GET /api/participations/my
+// @desc    Get current user's participations
+// @access  Private
+router.get('/my', auth, async (req, res) => {
+  try {
+    const participations = await Participation.find({ student: req.user.id })
+      .populate('student', 'name email studentId department year')
+      .populate('event', 'title eventType startDate endDate location hoursAwarded')
+      .populate('approvedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(participations);
+  } catch (error) {
+    console.error('Get my participations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/participations/pending
+// @desc    Get pending participations (Admin/Faculty)
+// @access  Private (Admin/Faculty)
+router.get('/pending', [auth, authorize('admin')], async (req, res) => {
+  try {
+    const participations = await Participation.find({ status: 'pending' })
+      .populate('student', 'name email studentId department year')
+      .populate('event', 'title eventType startDate endDate location')
+      .populate('approvedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(participations);
+  } catch (error) {
+    console.error('Get pending participations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/participations/register
+// @desc    Register for an event (alternative endpoint)
+// @access  Private (Students only)
+router.post('/register', [auth, authorize('student')], async (req, res) => {
+  try {
+    const { eventId } = req.body;
+
+    if (!eventId) {
+      return res.status(400).json({ message: 'Event ID is required' });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event is published
+    if (event.status !== 'published' && event.status !== 'ongoing') {
+      return res.status(400).json({ message: 'Event is not available for registration' });
+    }
+
+    // Check registration deadline
+    if (new Date() > new Date(event.registrationDeadline)) {
+      return res.status(400).json({ message: 'Registration deadline has passed' });
+    }
+
+    // Check max participants
+    if (event.maxParticipants && event.currentParticipants >= event.maxParticipants) {
+      return res.status(400).json({ message: 'Event is full' });
+    }
+
+    // Check if already registered
+    const existingParticipation = await Participation.findOne({
+      student: req.user.id,
+      event: eventId
+    });
+
+    if (existingParticipation) {
+      return res.status(400).json({ message: 'Already registered for this event' });
+    }
+
+    // Create participation
+    const participation = new Participation({
+      student: req.user.id,
+      event: eventId,
+      status: 'pending'
+    });
+
+    await participation.save();
+
+    // Update event participant count
+    event.currentParticipants += 1;
+    await event.save();
+
+    // Add participation to event
+    event.participations.push(participation._id);
+    await event.save();
+
+    await participation.populate('student', 'name email studentId');
+    await participation.populate('event', 'title eventType startDate endDate location');
+
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(participation.student, participation.event);
+    } catch (error) {
+      console.error('Failed to send registration confirmation email:', error);
+    }
+
+    res.status(201).json(participation);
+  } catch (error) {
+    console.error('Register participation error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Already registered for this event' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/participations
 // @desc    Get all participations (filtered by role)
 // @access  Private
@@ -122,7 +236,7 @@ router.post('/', [auth, authorize('student')], async (req, res) => {
 // @route   PUT /api/participations/:id/approve
 // @desc    Approve participation request
 // @access  Private (Admin/Faculty only)
-router.put('/:id/approve', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.put('/:id/approve', [auth, authorize('admin')], async (req, res) => {
   try {
     const participation = await Participation.findById(req.params.id);
 
@@ -208,7 +322,7 @@ router.put('/:id/approve', [auth, authorize('admin', 'faculty')], async (req, re
 // @route   PUT /api/participations/:id/reject
 // @desc    Reject participation request
 // @access  Private (Admin/Faculty only)
-router.put('/:id/reject', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.put('/:id/reject', [auth, authorize('admin')], async (req, res) => {
   try {
     const participation = await Participation.findById(req.params.id);
 
@@ -246,7 +360,7 @@ router.put('/:id/reject', [auth, authorize('admin', 'faculty')], async (req, res
 // @route   PUT /api/participations/:id/attendance
 // @desc    Mark attendance
 // @access  Private (Admin/Faculty only)
-router.put('/:id/attendance', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.put('/:id/attendance', [auth, authorize('admin')], async (req, res) => {
   try {
     const { attended } = req.body;
 

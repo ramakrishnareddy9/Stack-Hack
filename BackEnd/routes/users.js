@@ -9,7 +9,7 @@ const router = express.Router();
 // @route   GET /api/users
 // @desc    Get all users (filtered by role)
 // @access  Private (Admin/Faculty)
-router.get('/', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.get('/', [auth, authorize('admin')], async (req, res) => {
   try {
     const { role, search } = req.query;
     const query = {};
@@ -40,10 +40,10 @@ router.get('/', [auth, authorize('admin', 'faculty')], async (req, res) => {
 // @route   GET /api/users/stats
 // @desc    Get dashboard statistics
 // @access  Private (Admin/Faculty)
-router.get('/stats', [auth, authorize('admin', 'faculty')], async (req, res) => {
+router.get('/stats', [auth, authorize('admin')], async (req, res) => {
   try {
     const totalStudents = await User.countDocuments({ role: 'student' });
-    const totalFaculty = await User.countDocuments({ role: 'faculty' });
+    // Faculty role removed
     const totalEvents = await (await require('../models/Event').find({})).length;
     const totalParticipations = await Participation.countDocuments({});
     const totalContributions = await Contribution.countDocuments({});

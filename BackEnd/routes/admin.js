@@ -11,7 +11,7 @@ const { sendEmail, sendBulkEmail } = require('../services/emailService');
 // @route   GET /api/admin/stats
 // @desc    Get admin dashboard statistics
 // @access  Admin/Faculty
-router.get('/stats', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/stats', auth, authorize('admin'), async (req, res) => {
   try {
     // Get counts
     const totalStudents = await Student.countDocuments();
@@ -82,7 +82,7 @@ router.get('/stats', auth, authorize('admin', 'faculty'), async (req, res) => {
 // @route   GET /api/admin/pending-approvals
 // @desc    Get all pending participation approvals
 // @access  Admin/Faculty
-router.get('/pending-approvals', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/pending-approvals', auth, authorize('admin'), async (req, res) => {
   try {
     const participations = await Participation.find({ status: 'pending' })
       .populate('student', 'name registrationNumber department year attendancePercentage')
@@ -120,7 +120,7 @@ router.get('/pending-approvals', auth, authorize('admin', 'faculty'), async (req
 // @route   POST /api/admin/bulk-approve
 // @desc    Bulk approve participations
 // @access  Admin/Faculty
-router.post('/bulk-approve', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.post('/bulk-approve', auth, authorize('admin'), async (req, res) => {
   try {
     const { participationIds } = req.body;
 
@@ -235,7 +235,7 @@ router.post('/send-announcement', auth, authorize('admin'), async (req, res) => 
 // @route   GET /api/admin/event-analytics
 // @desc    Get detailed event analytics
 // @access  Admin/Faculty
-router.get('/event-analytics', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/event-analytics', auth, authorize('admin'), async (req, res) => {
   try {
     const events = await Event.find()
       .populate('participations')
@@ -294,7 +294,7 @@ router.get('/event-analytics', auth, authorize('admin', 'faculty'), async (req, 
 // @route   GET /api/admin/student-analytics
 // @desc    Get detailed student analytics
 // @access  Admin/Faculty
-router.get('/student-analytics', auth, authorize('admin', 'faculty'), async (req, res) => {
+router.get('/student-analytics', auth, authorize('admin'), async (req, res) => {
   try {
     const students = await Student.find().select('-password');
 

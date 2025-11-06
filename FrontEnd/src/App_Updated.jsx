@@ -1,34 +1,31 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Toaster } from 'react-hot-toast';
-import theme from './theme/muiTheme';
+import { Box } from '@mui/material';
 
 // Layout Components
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import ModernNavbar from './components/ModernNavbar';
+import ModernFooter from './components/ModernFooter';
 import PrivateRoute from './components/PrivateRoute';
 
 // Auth Pages
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
 
 // Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
 import CreateEvent from './pages/CreateEvent';
-import ManageEvents from './pages/ManageEvents';
-import ManageStudents from './pages/ManageStudents';
-import Reports from './pages/Reports';
+import AdminEvents from './pages/Admin/Events';
+import AdminParticipations from './pages/Admin/Participations';
+import AdminReports from './pages/Admin/Reports';
 
 // Student Pages
 import StudentDashboard from './pages/StudentDashboard';
-import Events from './pages/Events';
-import MyParticipations from './pages/MyParticipations';
+import StudentEvents from './pages/Student/Events';
+import StudentProfile from './pages/Student/Profile';
 import CertificatesPage from './pages/CertificatesPage';
-import Profile from './pages/Profile';
 
 // Components
 import EvidenceUpload from './components/EvidenceUpload';
@@ -36,17 +33,17 @@ import EvidenceUpload from './components/EvidenceUpload';
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <CssBaseline />
         <AuthProvider>
           <NotificationProvider>
             <Router>
-              <Box className="min-h-screen flex flex-col bg-gray-50">
-                <Navbar />
+              <Box className="min-h-screen flex flex-col" sx={{ bgcolor: 'background.default' }}>
+                <ModernNavbar />
                 
                 <Box component="main" className="flex-grow">
                   <Routes>
@@ -83,15 +80,15 @@ function App() {
                       path="/admin/events"
                       element={
                         <PrivateRoute roles={['admin', 'faculty']}>
-                          <ManageEvents />
+                          <AdminEvents />
                         </PrivateRoute>
                       }
                     />
                     <Route
-                      path="/admin/students"
+                      path="/admin/participations"
                       element={
                         <PrivateRoute roles={['admin', 'faculty']}>
-                          <ManageStudents />
+                          <AdminParticipations />
                         </PrivateRoute>
                       }
                     />
@@ -99,7 +96,7 @@ function App() {
                       path="/admin/reports"
                       element={
                         <PrivateRoute roles={['admin', 'faculty']}>
-                          <Reports />
+                          <AdminReports />
                         </PrivateRoute>
                       }
                     />
@@ -117,15 +114,15 @@ function App() {
                       path="/events"
                       element={
                         <PrivateRoute>
-                          <Events />
+                          <StudentEvents />
                         </PrivateRoute>
                       }
                     />
                     <Route
-                      path="/my-participations"
+                      path="/student/events"
                       element={
                         <PrivateRoute roles={['student']}>
-                          <MyParticipations />
+                          <StudentEvents />
                         </PrivateRoute>
                       }
                     />
@@ -149,7 +146,15 @@ function App() {
                       path="/profile"
                       element={
                         <PrivateRoute>
-                          <Profile />
+                          <StudentProfile />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/student/profile"
+                      element={
+                        <PrivateRoute roles={['student']}>
+                          <StudentProfile />
                         </PrivateRoute>
                       }
                     />
@@ -159,7 +164,7 @@ function App() {
                   </Routes>
                 </Box>
                 
-                <Footer />
+                <ModernFooter />
               </Box>
               
               {/* Toast Notifications */}
