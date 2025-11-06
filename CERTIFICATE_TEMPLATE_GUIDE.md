@@ -2,13 +2,16 @@
 
 ## How to Create a Certificate Template
 
-This guide will help you create a PDF certificate template that works with the NSS Portal's auto-fill feature.
+This guide will help you create an image certificate template that works with the NSS Portal's auto-fill feature.
 
 ## Requirements
 
-- **Format**: PDF file
+- **Format**: PNG or JPG/JPEG image file
 - **Size**: Maximum 10MB
-- **Recommended Dimensions**: A4 (595 x 842 pixels) or Letter size
+- **Recommended Dimensions**: 
+  - **Landscape**: 1920 x 1357 pixels (A4 at 300 DPI)
+  - **Portrait**: 1357 x 1920 pixels (A4 at 300 DPI)
+  - **High Resolution**: 300 DPI for print quality
 - **Orientation**: Landscape works best for certificates
 
 ## Design Guidelines
@@ -29,19 +32,19 @@ You can create certificate templates using:
   1. Search for "Certificate" templates
   2. Customize the design
   3. Leave blank spaces for Name, Event, Date
-  4. Download as PDF
+  4. Download as PNG (recommended) or JPG
 
 - **Microsoft Word/PowerPoint**
   1. Create your certificate design
-  2. Save/Export as PDF
+  2. Save/Export as PNG or JPG
   
 - **Adobe Illustrator/Photoshop**
   1. Design your certificate
-  2. Export as PDF
+  2. Export as PNG (high quality, 300 DPI)
 
 - **Google Docs/Slides**
   1. Create certificate layout
-  2. Download as PDF
+  2. Download as PNG or JPG
 
 ### 3. **Design Best Practices**
 
@@ -96,7 +99,10 @@ You can create certificate templates using:
    - Leave blank spaces where you want dynamic fields
    - Add your college logo/name
    - Add NSS branding if needed
-5. **Download** as PDF
+5. **Download** as PNG (recommended for best quality)
+   - Click Share → Download
+   - Select PNG file type
+   - Choose "Recommended" quality
 6. **Upload** to NSS Portal
 
 ## Tips for Field Placement
@@ -121,12 +127,24 @@ You can create certificate templates using:
 
 ## After Creating Your Template
 
-1. **Upload** the PDF to the Certificate Configuration page
-2. **Click** on the PDF preview to place fields
+1. **Upload** the PNG/JPG to the Certificate Configuration page
+2. **Click** on the image preview to place fields
 3. **Test** using the "Test Preview" button
 4. **Adjust** positions if needed
 5. **Save** configuration
 6. **Generate** certificates for participants
+
+## Certificate Distribution
+
+Once certificates are generated:
+- **Students receive**:
+  - Email with certificate as PNG attachment
+  - In-app notification
+  - Certificate appears in their dashboard
+- **Students can**:
+  - View certificates online
+  - Download certificates as PNG images
+  - Access all their certificates anytime from their dashboard
 
 ## Common Issues
 
@@ -166,7 +184,7 @@ You can find free certificate templates at:
 - **Origin**: Top-left corner (0, 0)
 - **X-axis**: Left to right
 - **Y-axis**: Top to bottom
-- **Standard A4 size**: 595px wide × 842px tall
+- **Recommended dimensions**: 1920px wide × 1357px tall (landscape A4 at 300 DPI)
 
 ## Need Help?
 
@@ -177,5 +195,22 @@ If you need assistance:
 4. Check the console for any error messages
 
 ---
+
+## Dynamic Fields Explained
+
+The system automatically fills these fields:
+
+1. **Student Name**: 
+   - Source: Student's registered name in the system
+   - Example: "John Doe"
+
+2. **Event Name**: 
+   - Source: Event title from database
+   - Example: "Blood Donation Drive 2024"
+
+3. **Date Range**: 
+   - Source: Event start date and end date
+   - Format: "November 1, 2024 - November 5, 2024"
+   - Automatically formatted for readability
 
 **Last Updated**: November 2024

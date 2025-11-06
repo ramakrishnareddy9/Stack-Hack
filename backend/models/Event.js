@@ -61,29 +61,17 @@ const eventSchema = new mongoose.Schema({
     ref: 'Participation'
   }],
   certificate: {
-    templateUrl: String,
-    templatePublicId: String,
-    fields: {
-      name: {
-        x: Number,
-        y: Number,
-        fontSize: { type: Number, default: 24 },
-        color: { type: String, default: '#000000' }
+    type: mongoose.Schema.Types.Mixed,
+    default: () => ({
+      templateUrl: null,
+      templatePublicId: null,
+      fields: {
+        name: { x: 0, y: 0, fontSize: 36, color: '#000000', fontFamily: 'Arial' },
+        eventName: { x: 0, y: 0, fontSize: 28, color: '#000000', fontFamily: 'Arial' },
+        date: { x: 0, y: 0, fontSize: 24, color: '#000000', fontFamily: 'Arial' }
       },
-      eventName: {
-        x: Number,
-        y: Number,
-        fontSize: { type: Number, default: 20 },
-        color: { type: String, default: '#000000' }
-      },
-      date: {
-        x: Number,
-        y: Number,
-        fontSize: { type: Number, default: 18 },
-        color: { type: String, default: '#000000' }
-      }
-    },
-    autoSend: { type: Boolean, default: true }
+      autoSend: true
+    })
   },
   certificatesSent: { type: Boolean, default: false }
 }, {

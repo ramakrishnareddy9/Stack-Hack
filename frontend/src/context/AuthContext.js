@@ -18,23 +18,21 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
 
   // Set axios default header
-  if (token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  }
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['x-auth-token'] = token;
+    } else {
+      delete axios.defaults.headers.common['x-auth-token'];
+    }
+  }, [token]);
 
   useEffect(() => {
     if (token) {
       fetchUser();
     } else {
-      // Try to load user from localStorage if token exists there
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error('Error parsing stored user:', e);
-        }
-      }
+      // No token means no valid session - clear everything
+      setUser(null);
+      localStorage.removeItem('user');
       setLoading(false);
     }
   }, [token]);
@@ -64,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       setToken(newToken);
       setUser(userData);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      axios.defaults.headers.common['x-auth-token'] = newToken;
       
       toast.success('Login successful!');
       return { success: true };
@@ -84,7 +82,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userDataResponse));
       setToken(newToken);
       setUser(userDataResponse);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      axios.defaults.headers.common['x-auth-token'] = newToken;
       
       toast.success('Registration successful!');
       return { success: true };
@@ -100,7 +98,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+    delete axios.defaults.headers.common['x-auth-token'];
     toast.success('Logged out successfully');
   };
 

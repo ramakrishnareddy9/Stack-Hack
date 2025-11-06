@@ -3,10 +3,55 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const Event = require('../models/Event');
+const Participation = require('../models/Participation');
 const { auth, authorize } = require('../middleware/auth');
 const { generateAndSendCertificates } = require('../utils/certificateGenerator');
 
 const router = express.Router();
+
+// @route   POST /api/certificates/force-save-test/:eventId
+// @desc    TEST endpoint to force save a template URL (for debugging)
+// @access  Private (Admin/Faculty only)
+router.post('/force-save-test/:eventId', [
+  auth,
+  authorize('admin', 'faculty')
+], async (req, res) => {
+  try {
+    console.log('\n🧪 FORCE SAVE TEST for Event ID:', req.params.eventId);
+    const event = await Event.findById(req.params.eventId);
+    
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    // Force create certificate object
+    if (!event.certificate) {
+      event.certificate = {};
+    }
+    
+    // Set a test template URL
+    event.certificate.templateUrl = '/uploads/certificates/TEST-MANUAL-SAVE.pdf';
+    
+    console.log('Before markModified:', event.certificate);
+    event.markModified('certificate');
+    
+    await event.save();
+    console.log('After save:', event.certificate);
+    
+    // Re-fetch from DB to verify
+    const refetched = await Event.findById(req.params.eventId);
+    console.log('Refetched from DB:', refetched.certificate);
+    
+    res.json({
+      message: 'Force save test completed',
+      beforeSave: event.certificate,
+      afterRefetch: refetched.certificate
+    });
+  } catch (error) {
+    console.error('Force save test error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // @route   GET /api/certificates/debug/:eventId
 // @desc    Debug endpoint to check event configuration
@@ -64,10 +109,11 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed'));
+      cb(new Error('Only PNG and JPG/JPEG files are allowed'));
     }
   }
 });
@@ -81,35 +127,75 @@ router.post('/upload-template/:eventId', [
   upload.single('template')
 ], async (req, res) => {
   try {
+    console.log('\n📤 Upload Template Request');
+    console.log('   Event ID:', req.params.eventId);
+    console.log('   File:', req.file ? req.file.filename : 'No file');
+    
     const event = await Event.findById(req.params.eventId);
     
     if (!event) {
+      console.log('❌ Event not found');
       return res.status(404).json({ message: 'Event not found' });
     }
     
+    console.log('✅ Event found:', event.title);
+    
     if (!req.file) {
+      console.log('❌ No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
+    console.log('✅ File received:', req.file.filename);
+    
     // Delete old template if exists
     if (event.certificate && event.certificate.templateUrl) {
-      const oldPath = path.join(__dirname, '..', event.certificate.templateUrl);
+      // Normalize stored URL to filesystem path (remove leading slash if present)
+      const oldRel = event.certificate.templateUrl.startsWith('/')
+        ? event.certificate.templateUrl.slice(1)
+        : event.certificate.templateUrl;
+      const oldPath = path.join(__dirname, '..', oldRel);
       try {
         await fs.unlink(oldPath);
+        console.log('🗑️ Old template deleted');
       } catch (error) {
-        console.log('Old template file not found or already deleted');
+        console.log('⚠️ Old template file not found or already deleted');
       }
     }
     
     // Save template URL to event
+    // Save with a leading slash for correct static serving (e.g., /uploads/..)
     const templateUrl = `/uploads/certificates/${req.file.filename}`;
     
-    if (!event.certificate) {
-      event.certificate = {};
+    // Initialize certificate object if it doesn't exist
+    if (!event.certificate || typeof event.certificate !== 'object') {
+      event.certificate = {
+        templateUrl: null,
+        templatePublicId: null,
+        fields: {
+          name: { x: 0, y: 0, fontSize: 36, color: '#000000', fontFamily: 'Arial' },
+          eventName: { x: 0, y: 0, fontSize: 28, color: '#000000', fontFamily: 'Arial' },
+          date: { x: 0, y: 0, fontSize: 24, color: '#000000', fontFamily: 'Arial' }
+        },
+        autoSend: true
+      };
     }
     
+    // Update template URL
     event.certificate.templateUrl = templateUrl;
+    
+    // Mark the certificate field as modified (Mongoose needs this for nested objects)
+    event.markModified('certificate');
+    
+    console.log('💾 Saving templateUrl:', templateUrl);
+    console.log('   Certificate object before save:', JSON.stringify(event.certificate, null, 2));
+    
     await event.save();
+    
+    console.log('✅ Template saved to database');
+    
+    // Verify by re-fetching
+    const verifyEvent = await Event.findById(req.params.eventId);
+    console.log('   Certificate object after save (verified):', JSON.stringify(verifyEvent.certificate, null, 2));
     
     res.json({
       message: 'Certificate template uploaded successfully',
@@ -138,16 +224,26 @@ router.put('/configure/:eventId', [
     
     const { fields, autoSend } = req.body;
     
-    if (!event.certificate) {
-      event.certificate = {};
+    // Initialize certificate object if it doesn't exist
+    if (!event.certificate || typeof event.certificate !== 'object') {
+      event.certificate = {
+        templateUrl: null,
+        templatePublicId: null,
+        fields: {
+          name: { x: 0, y: 0, fontSize: 36, color: '#000000', fontFamily: 'Arial' },
+          eventName: { x: 0, y: 0, fontSize: 28, color: '#000000', fontFamily: 'Arial' },
+          date: { x: 0, y: 0, fontSize: 24, color: '#000000', fontFamily: 'Arial' }
+        },
+        autoSend: true
+      };
     }
     
     // Update field coordinates
     if (fields) {
       event.certificate.fields = {
-        name: fields.name || event.certificate.fields?.name || {},
-        eventName: fields.eventName || event.certificate.fields?.eventName || {},
-        date: fields.date || event.certificate.fields?.date || {}
+        name: fields.name || event.certificate.fields?.name || { x: 0, y: 0, fontSize: 36, color: '#000000', fontFamily: 'Arial' },
+        eventName: fields.eventName || event.certificate.fields?.eventName || { x: 0, y: 0, fontSize: 28, color: '#000000', fontFamily: 'Arial' },
+        date: fields.date || event.certificate.fields?.date || { x: 0, y: 0, fontSize: 24, color: '#000000', fontFamily: 'Arial' }
       };
     }
     
@@ -155,7 +251,12 @@ router.put('/configure/:eventId', [
       event.certificate.autoSend = autoSend;
     }
     
+    // Mark the certificate field as modified (Mongoose needs this for nested objects)
+    event.markModified('certificate');
+    
+    console.log('💾 Saving certificate configuration:', JSON.stringify(event.certificate, null, 2));
     await event.save();
+    console.log('✅ Configuration saved successfully');
     
     res.json({
       message: 'Certificate configuration updated successfully',
@@ -243,9 +344,11 @@ router.post('/generate/:eventId', [
     });
   } catch (error) {
     console.error('Generate certificates error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       message: error.message || 'Server error',
-      error: error.message 
+      error: error.message,
+      stack: error.stack
     });
   }
 });
@@ -283,16 +386,23 @@ router.post('/test-preview/:eventId', [
       });
     }
     
-    // Check if fields are configured
+    // Check if fields are configured (check for null/undefined, not falsy since 0 is valid)
     if (!event.certificate.fields || 
-        (!event.certificate.fields.name?.x && 
-         !event.certificate.fields.eventName?.x && 
-         !event.certificate.fields.date?.x)) {
+        (event.certificate.fields.name?.x == null && 
+         event.certificate.fields.eventName?.x == null && 
+         event.certificate.fields.date?.x == null)) {
+      console.log('❌ Fields not configured');
       return res.status(400).json({ 
         message: 'Please configure field positions before generating preview',
         requiresFieldSetup: true 
       });
     }
+    
+    console.log('✅ Fields configured:', {
+      name: event.certificate.fields.name,
+      eventName: event.certificate.fields.eventName,
+      date: event.certificate.fields.date
+    });
     
     // Create test student data
     const testStudent = {
@@ -303,7 +413,11 @@ router.post('/test-preview/:eventId', [
     
     // Load template
     const { generateCertificate } = require('../utils/certificateGenerator');
-    const templatePath = path.join(__dirname, '..', event.certificate.templateUrl);
+    // Normalize stored URL to filesystem path (remove leading slash if present)
+    const templateRel = event.certificate.templateUrl.startsWith('/')
+      ? event.certificate.templateUrl.slice(1)
+      : event.certificate.templateUrl;
+    const templatePath = path.join(__dirname, '..', templateRel);
     
     // Check if template file exists
     if (!await fs.stat(templatePath).catch(() => false)) {
@@ -313,21 +427,61 @@ router.post('/test-preview/:eventId', [
       });
     }
     
-    const templateBuffer = await fs.readFile(templatePath);
-    
     // Generate test certificate
-    const certificateBuffer = await generateCertificate(event, testStudent, templateBuffer);
+    const certificateBuffer = await generateCertificate(event, testStudent, templatePath);
     
     // Send as response
     res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="test-certificate.pdf"'
+      'Content-Type': 'image/png',
+      'Content-Disposition': 'inline; filename="test-certificate.png"'
     });
     res.send(certificateBuffer);
     
   } catch (error) {
     console.error('Test preview error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message, stack: error.stack });
+  }
+});
+
+// @route   GET /api/certificates/my-certificates
+// @desc    Get all certificates for the logged-in student
+// @access  Private (Student only)
+router.get('/my-certificates', auth, async (req, res) => {
+  try {
+    console.log('\n📜 Fetching certificates for student:', req.user.id);
+    
+    const participations = await Participation.find({
+      student: req.user.id,
+      'certificate.url': { $exists: true, $ne: null }
+    })
+    .populate('event', 'title startDate endDate location')
+    .sort({ 'certificate.generatedAt': -1 });
+    
+    // Filter out participations where event might be null/deleted
+    const certificates = participations
+      .filter(p => p.event)
+      .map(p => ({
+        id: p._id,
+        event: {
+          id: p.event._id,
+          title: p.event.title,
+          startDate: p.event.startDate,
+          endDate: p.event.endDate,
+          location: p.event.location
+        },
+        certificate: {
+          url: p.certificate.url,
+          generatedAt: p.certificate.generatedAt
+        }
+      }));
+    
+    console.log(`✅ Found ${certificates.length} certificates`);
+    res.json(certificates);
+  } catch (error) {
+    console.error('❌ Error fetching certificates:', error);
+    console.error('   Stack:', error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message, stack: error.stack });
   }
 });
 

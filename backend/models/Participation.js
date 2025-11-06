@@ -41,6 +41,11 @@ const participationSchema = new mongoose.Schema({
   contribution: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contribution'
+  },
+  certificate: {
+    url: String,
+    publicId: String,
+    generatedAt: Date
   }
 }, {
   timestamps: true

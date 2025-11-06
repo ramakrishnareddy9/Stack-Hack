@@ -1,4 +1,4 @@
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs').promises;
 const path = require('path');
 const nodemailer = require('nodemailer');
@@ -19,31 +19,31 @@ const transporter = nodemailer.createTransport({
  * Generate a certificate for a single student
  * @param {Object} event - Event object
  * @param {Object} student - Student object
- * @param {Buffer} templateBuffer - PDF template buffer
- * @returns {Promise<Buffer>} - Generated certificate PDF buffer
+ * @param {String} templatePath - Path to image template
+ * @returns {Promise<Buffer>} - Generated certificate image buffer
  */
-async function generateCertificate(event, student, templateBuffer) {
+async function generateCertificate(event, student, templatePath) {
   try {
-    // Load the template PDF
-    const pdfDoc = await PDFDocument.load(templateBuffer);
-    const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
+    console.log('📄 Generating certificate with template:', templatePath);
     
-    // Get page dimensions
-    const { height } = firstPage.getSize();
+    // Check if file exists
+    try {
+      await fs.access(templatePath);
+    } catch (err) {
+      throw new Error(`Template file not found at: ${templatePath}`);
+    }
     
-    // Embed font
-    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    // Load the template image
+    console.log('📷 Loading image...');
+    const image = await loadImage(templatePath);
+    console.log(`✅ Image loaded: ${image.width}x${image.height}`);
     
-    // Helper function to convert hex to RGB
-    const hexToRgb = (hex) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? {
-        r: parseInt(result[1], 16) / 255,
-        g: parseInt(result[2], 16) / 255,
-        b: parseInt(result[3], 16) / 255
-      } : { r: 0, g: 0, b: 0 };
-    };
+    // Create canvas with same dimensions as template
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext('2d');
+    
+    // Draw the template image
+    ctx.drawImage(image, 0, 0);
     
     // Format date
     const formatDate = (date) => {
@@ -51,46 +51,38 @@ async function generateCertificate(event, student, templateBuffer) {
       return new Date(date).toLocaleDateString('en-US', options);
     };
     
+    // Set text alignment to center
+    ctx.textAlign = 'center';
+    
     // Draw student name
     if (event.certificate.fields.name && event.certificate.fields.name.x !== undefined) {
-      const nameColor = hexToRgb(event.certificate.fields.name.color || '#000000');
-      firstPage.drawText(student.name || '', {
-        x: event.certificate.fields.name.x,
-        y: height - event.certificate.fields.name.y, // Convert to PDF coordinate system
-        size: event.certificate.fields.name.fontSize || 24,
-        font: font,
-        color: rgb(nameColor.r, nameColor.g, nameColor.b),
-      });
+      const nameFont = event.certificate.fields.name.fontFamily || 'Arial';
+      ctx.font = `${event.certificate.fields.name.fontSize || 36}px ${nameFont}`;
+      ctx.fillStyle = event.certificate.fields.name.color || '#000000';
+      ctx.fillText(student.name || '', event.certificate.fields.name.x, event.certificate.fields.name.y);
     }
     
     // Draw event name
     if (event.certificate.fields.eventName && event.certificate.fields.eventName.x !== undefined) {
-      const eventColor = hexToRgb(event.certificate.fields.eventName.color || '#000000');
-      firstPage.drawText(event.title || '', {
-        x: event.certificate.fields.eventName.x,
-        y: height - event.certificate.fields.eventName.y,
-        size: event.certificate.fields.eventName.fontSize || 20,
-        font: font,
-        color: rgb(eventColor.r, eventColor.g, eventColor.b),
-      });
+      const eventFont = event.certificate.fields.eventName.fontFamily || 'Arial';
+      ctx.font = `${event.certificate.fields.eventName.fontSize || 28}px ${eventFont}`;
+      ctx.fillStyle = event.certificate.fields.eventName.color || '#000000';
+      ctx.fillText(event.title || '', event.certificate.fields.eventName.x, event.certificate.fields.eventName.y);
     }
     
-    // Draw date
+    // Draw date (format: Start Date - End Date)
     if (event.certificate.fields.date && event.certificate.fields.date.x !== undefined) {
-      const dateColor = hexToRgb(event.certificate.fields.date.color || '#000000');
-      const dateText = formatDate(event.endDate);
-      firstPage.drawText(dateText, {
-        x: event.certificate.fields.date.x,
-        y: height - event.certificate.fields.date.y,
-        size: event.certificate.fields.date.fontSize || 18,
-        font: font,
-        color: rgb(dateColor.r, dateColor.g, dateColor.b),
-      });
+      const dateFont = event.certificate.fields.date.fontFamily || 'Arial';
+      ctx.font = `${event.certificate.fields.date.fontSize || 24}px ${dateFont}`;
+      ctx.fillStyle = event.certificate.fields.date.color || '#000000';
+      const startDate = formatDate(event.startDate);
+      const endDate = formatDate(event.endDate);
+      const dateText = `${startDate} - ${endDate}`;
+      ctx.fillText(dateText, event.certificate.fields.date.x, event.certificate.fields.date.y);
     }
     
-    // Save the PDF
-    const pdfBytes = await pdfDoc.save();
-    return Buffer.from(pdfBytes);
+    // Return PNG buffer
+    return canvas.toBuffer('image/png');
   } catch (error) {
     console.error('Error generating certificate:', error);
     throw error;
@@ -107,7 +99,7 @@ async function generateCertificate(event, student, templateBuffer) {
 async function sendCertificateEmail(student, event, certificateBuffer) {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"NSS Portal" <${process.env.EMAIL_USER}>`,
       to: student.email,
       subject: `Certificate for ${event.title}`,
       html: `
@@ -129,9 +121,9 @@ async function sendCertificateEmail(student, event, certificateBuffer) {
       `,
       attachments: [
         {
-          filename: `Certificate_${student.name.replace(/\s+/g, '_')}_${event.title.replace(/\s+/g, '_')}.pdf`,
+          filename: `Certificate_${student.name.replace(/\s+/g, '_')}_${event.title.replace(/\s+/g, '_')}.png`,
           content: certificateBuffer,
-          contentType: 'application/pdf'
+          contentType: 'image/png'
         }
       ]
     };
@@ -229,16 +221,22 @@ async function generateAndSendCertificates(eventId, io = null) {
     
     console.log(`📋 Found ${participations.length} students to receive certificates`);
     
-    // Download template PDF
-    let templateBuffer;
+    // Get template image path
+    let templatePath;
     if (event.certificate.templateUrl.startsWith('http')) {
-      // If using Cloudinary or external URL
+      // If using Cloudinary or external URL, download temporarily
       const response = await fetch(event.certificate.templateUrl);
-      templateBuffer = Buffer.from(await response.arrayBuffer());
+      const buffer = Buffer.from(await response.arrayBuffer());
+      templatePath = path.join(__dirname, '..', 'uploads', 'temp', `temp-${Date.now()}.png`);
+      await fs.mkdir(path.dirname(templatePath), { recursive: true });
+      await fs.writeFile(templatePath, buffer);
     } else {
       // If using local file
-      const templatePath = path.join(__dirname, '..', event.certificate.templateUrl);
-      templateBuffer = await fs.readFile(templatePath);
+      // Normalize stored URL to filesystem path (remove leading slash if present)
+      const templateRel = event.certificate.templateUrl.startsWith('/')
+        ? event.certificate.templateUrl.slice(1)
+        : event.certificate.templateUrl;
+      templatePath = path.join(__dirname, '..', templateRel);
     }
     
     const results = {
@@ -255,7 +253,14 @@ async function generateAndSendCertificates(eventId, io = null) {
         console.log(`\n📄 Generating certificate for: ${student.name} (${student.email})`);
         
         // Generate certificate
-        const certificateBuffer = await generateCertificate(event, student, templateBuffer);
+        const certificateBuffer = await generateCertificate(event, student, templatePath);
+        
+        // Save certificate to uploads folder
+        const certFileName = `cert_${student._id}_${event._id}_${Date.now()}.png`;
+        const certPath = path.join(__dirname, '..', 'uploads', 'certificates', 'generated', certFileName);
+        await fs.mkdir(path.dirname(certPath), { recursive: true });
+        await fs.writeFile(certPath, certificateBuffer);
+        const certUrl = `/uploads/certificates/generated/${certFileName}`;
         
         // Send via email
         const emailResult = await sendCertificateEmail(student, event, certificateBuffer);
@@ -264,6 +269,17 @@ async function generateAndSendCertificates(eventId, io = null) {
         await sendCertificateNotification(student, event, io);
         
         if (emailResult.success) {
+          // Update participation with certificate URL
+          await Participation.findOneAndUpdate(
+            { student: student._id, event: event._id },
+            { 
+              certificate: {
+                url: certUrl,
+                generatedAt: new Date()
+              }
+            }
+          );
+          
           results.successful++;
           console.log(`✅ Certificate successfully sent to ${student.name}`);
         } else {

@@ -11,7 +11,7 @@ import AdminDashboard from './pages/Admin/Dashboard';
 import AdminEvents from './pages/Admin/Events';
 import AdminParticipations from './pages/Admin/Participations';
 import AdminReports from './pages/Admin/Reports';
-import CertificateConfig from './pages/Admin/CertificateConfig';
+import CertificateConfig from './pages/Admin/CertificateConfigNew';
 import StudentDashboard from './pages/Student/Dashboard';
 import StudentEvents from './pages/Student/Events';
 import StudentProfile from './pages/Student/Profile';

@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-
-// Configure PDF.js worker - use local worker file
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+// Removed PDF-related imports - now using images
 
 export default function CertificateConfig() {
   const { eventId } = useParams();
@@ -18,9 +13,8 @@ export default function CertificateConfig() {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [templateFile, setTemplateFile] = useState(null);
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1.0);
   
   // Field coordinates
@@ -72,7 +66,15 @@ export default function CertificateConfig() {
           setAutoSend(response.data.certificate.autoSend);
         }
         if (response.data.certificate.templateUrl) {
-          setPdfUrl(`http://localhost:5000${response.data.certificate.templateUrl}`);
+          const imgUrl = `http://localhost:5000${response.data.certificate.templateUrl}`;
+          setImageUrl(imgUrl);
+          
+          // Load image to get dimensions
+          const img = new Image();
+          img.onload = () => {
+            setImageDimensions({ width: img.width, height: img.height });
+          };
+          img.src = imgUrl;
         }
       }
       
@@ -86,12 +88,20 @@ export default function CertificateConfig() {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (file && allowedTypes.includes(file.type)) {
       setTemplateFile(file);
       const fileUrl = URL.createObjectURL(file);
-      setPdfUrl(fileUrl);
+      setImageUrl(fileUrl);
+      
+      // Load image to get dimensions
+      const img = new Image();
+      img.onload = () => {
+        setImageDimensions({ width: img.width, height: img.height });
+      };
+      img.src = fileUrl;
     } else {
-      toast.error('Please select a valid PDF file');
+      toast.error('Please select a valid PNG or JPG image file');
     }
   };
 
@@ -203,13 +213,17 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
   };
 
   const handleTestPreview = async () => {
-    if (!pdfUrl) {
+    if (!imageUrl) {
       toast.error('Please upload a certificate template first');
       return;
     }
     
-    // Check if coordinates are set
-    const hasCoordinates = fields.name.x > 0 || fields.eventName.x > 0 || fields.date.x > 0;
+    // Check if coordinates are set (null/undefined check, not > 0, since 0 is valid)
+    const hasCoordinates = 
+      fields.name.x != null || 
+      fields.eventName.x != null || 
+      fields.date.x != null;
+    
     if (!hasCoordinates) {
       toast.error('Please set field positions before generating preview');
       return;
@@ -224,8 +238,8 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
         responseType: 'blob'
       });
       
-      // Create a URL for the PDF blob
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      // Create a URL for the image blob
+      const blob = new Blob([response.data], { type: 'image/png' });
       const url = window.URL.createObjectURL(blob);
       
       // Open in new tab
@@ -234,17 +248,27 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
       toast.success('Test certificate preview opened in new tab');
     } catch (error) {
       console.error('Test preview error:', error);
-      console.error('Error response:', error.response?.data);
+      let respData = error.response?.data;
+      // Handle Blob error responses
+      if (respData instanceof Blob) {
+        try {
+          const text = await respData.text();
+          respData = JSON.parse(text);
+        } catch (_) {
+          // keep as blob
+        }
+      }
+      console.error('Error response:', respData);
       
-      const errorMessage = error.response?.data?.message || 'Failed to generate test certificate';
+      const errorMessage = respData?.message || 'Failed to generate test certificate';
       toast.error(errorMessage, { duration: 6000 });
       
       // Show specific guidance based on error
-      if (error.response?.data?.requiresSetup) {
+      if (respData?.requiresSetup) {
         setTimeout(() => toast.error('📤 Please upload a certificate template first', { duration: 4000 }), 500);
-      } else if (error.response?.data?.requiresFieldSetup) {
+      } else if (respData?.requiresFieldSetup) {
         setTimeout(() => toast.error('📍 Please set field positions by clicking on the PDF', { duration: 4000 }), 500);
-      } else if (error.response?.data?.templateMissing) {
+      } else if (respData?.templateMissing) {
         setTimeout(() => toast.error('🔄 Template file is missing. Please re-upload it', { duration: 4000 }), 500);
       }
     }
@@ -252,12 +276,17 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
 
   const handleGenerateCertificates = async () => {
     // Validation checks
-    if (!pdfUrl) {
+    if (!imageUrl) {
       toast.error('Please upload a certificate template first');
       return;
     }
     
-    const hasCoordinates = fields.name.x > 0 || fields.eventName.x > 0 || fields.date.x > 0;
+    // Check if coordinates are set (null/undefined check, not > 0, since 0 is valid)
+    const hasCoordinates = 
+      fields.name.x != null || 
+      fields.eventName.x != null || 
+      fields.date.x != null;
+    
     if (!hasCoordinates) {
       toast.error('Please set field positions before generating certificates');
       return;
@@ -289,13 +318,20 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
       fetchEventConfig();
     } catch (error) {
       console.error('Generate certificates error:', error);
-      console.error('Error response:', error.response?.data);
+      let respData = error.response?.data;
+      if (respData instanceof Blob) {
+        try {
+          const text = await respData.text();
+          respData = JSON.parse(text);
+        } catch (_) {}
+      }
+      console.error('Error response:', respData);
       
-      const errorMessage = error.response?.data?.message || 'Failed to generate certificates';
+      const errorMessage = respData?.message || 'Failed to generate certificates';
       toast.error(errorMessage, { duration: 6000 });
       
       // Show specific guidance based on error
-      if (error.response?.data?.requiresSetup) {
+      if (respData?.requiresSetup) {
         setTimeout(() => toast.error('📤 Please complete certificate setup first', { duration: 4000 }), 500);
       }
     } finally {
@@ -303,9 +339,7 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
     }
   };
 
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-  };
+  // Removed PDF-specific handler
 
   if (loading) {
     return (
@@ -352,7 +386,7 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
             <h2 className="text-xl font-semibold mb-4">Upload Template</h2>
             <input
               type="file"
-              accept=".pdf"
+              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
               onChange={handleFileChange}
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
@@ -451,14 +485,14 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
             </button>
             <button
               onClick={handleTestPreview}
-              disabled={!pdfUrl}
+              disabled={!imageUrl}
               className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               👁️ Test Preview
             </button>
             <button
               onClick={handleGenerateCertificates}
-              disabled={!pdfUrl || generating}
+              disabled={!imageUrl || generating}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {generating ? '⏳ Generating...' : '📧 Generate & Send Certificates'}
@@ -475,9 +509,9 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
         {/* Right Panel - PDF Preview */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">PDF Preview</h2>
+            <h2 className="text-xl font-semibold mb-4">Certificate Template Preview</h2>
             
-            {pdfUrl ? (
+            {imageUrl ? (
               <div className="space-y-4">
                 {/* Zoom Controls */}
                 <div className="flex items-center gap-4 justify-center">
@@ -496,21 +530,23 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
                   </button>
                 </div>
 
-                {/* PDF with markers */}
+                {/* Image with markers */}
                 <div className="relative inline-block border-2 border-gray-300 rounded overflow-auto max-h-[800px]">
                   <div
                     onClick={handlePdfClick}
                     className="relative cursor-crosshair"
                     style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
                   >
-                    <Document
-                      file={pdfUrl}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      loading={<div className="p-8 text-center">Loading PDF...</div>}
-                    >
-                      <Page pageNumber={pageNumber} />
-                    </Document>
-                    
+                    <img 
+                      src={imageUrl} 
+                      alt="Certificate Template"
+                      onLoad={(e) => {
+                        setImageDimensions({ 
+                          width: e.target.naturalWidth, 
+                          height: e.target.naturalHeight 
+                        });
+                      }}
+                    />
                     {/* Markers overlay */}
                     {markers.map((marker, index) => (
                       <div
@@ -531,16 +567,16 @@ Fields Set: ${response.data.fields ? JSON.stringify(response.data.fields, null, 
                   </div>
                 </div>
 
-                {numPages && (
+                {imageDimensions.width > 0 && (
                   <p className="text-sm text-gray-600 text-center">
-                    Page {pageNumber} of {numPages}
+                    Image size: {imageDimensions.width} × {imageDimensions.height} pixels
                   </p>
                 )}
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
-                <p>No PDF template uploaded yet.</p>
-                <p className="text-sm mt-2">Upload a PDF template to get started.</p>
+                <p>No certificate template uploaded yet.</p>
+                <p className="text-sm mt-2">Upload a PNG or JPG template to get started.</p>
               </div>
             )}
           </div>
