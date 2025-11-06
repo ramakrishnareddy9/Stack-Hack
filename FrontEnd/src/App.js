@@ -8,6 +8,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { SocketProvider } from './context/SocketContext';
 import PrivateRoute from './components/PrivateRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -27,8 +28,9 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <NotificationProvider>
-            <Router>
+          <SocketProvider>
+            <NotificationProvider>
+              <Router>
               <Box className="min-h-screen flex flex-col" sx={{ bgcolor: 'background.default' }}>
                 <Navbar />
                 <Box component="main" className="flex-grow">
@@ -87,7 +89,8 @@ function App() {
               </Box>
               <Toaster position="top-right" />
             </Router>
-          </NotificationProvider>
+            </NotificationProvider>
+          </SocketProvider>
         </AuthProvider>
       </LocalizationProvider>
     </ThemeProvider>

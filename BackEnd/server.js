@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const http = require('http');
+const { initializeCertificateScheduler } = require('./utils/certificateScheduler');
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/notifications-api', require('./routes/notifications-api'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/certificates', require('./routes/certificates'));
 app.use('/api/students', require('./routes/students'));
@@ -94,5 +96,8 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.IO server initialized`);
+  
+  // Initialize certificate scheduler
+  initializeCertificateScheduler(io);
 });
 

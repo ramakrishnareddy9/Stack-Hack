@@ -23,6 +23,7 @@
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.48.2",
     "react-hot-toast": "^2.4.1",
+    "react-pdf": "^10.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
     "socket.io-client": "^4.8.1",
@@ -38,7 +39,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "postinstall": "node scripts/copy-pdf-worker.js"
   },
   "eslintConfig": {
     "extends": [
