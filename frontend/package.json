@@ -6,6 +6,8 @@
     "@heroicons/react": "^2.1.1",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
+    "file-saver": "^2.0.5",
+    "pdf-parse": "^2.4.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.48.2",
