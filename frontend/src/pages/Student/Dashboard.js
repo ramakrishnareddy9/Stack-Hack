@@ -47,7 +47,8 @@ const StudentDashboard = () => {
 
   const handleDownloadCertificate = async (cert) => {
     try {
-      const response = await fetch(`http://localhost:5000${cert.certificate.url}`);
+      // Certificate URL is now a full URL from backend
+      const response = await fetch(cert.certificate.url);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -215,7 +216,7 @@ const StudentDashboard = () => {
                 
                 <div className="flex gap-2">
                   <a
-                    href={`http://localhost:5000${cert.certificate.url}`}
+                    href={cert.certificate.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 text-center px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors"

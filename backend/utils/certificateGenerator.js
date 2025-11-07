@@ -260,7 +260,10 @@ async function generateAndSendCertificates(eventId, io = null) {
         const certPath = path.join(__dirname, '..', 'uploads', 'certificates', 'generated', certFileName);
         await fs.mkdir(path.dirname(certPath), { recursive: true });
         await fs.writeFile(certPath, certificateBuffer);
-        const certUrl = `/uploads/certificates/generated/${certFileName}`;
+        
+        // Use full URL for production deployment
+        const baseUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+        const certUrl = `${baseUrl}/uploads/certificates/generated/${certFileName}`;
         
         // Send via email
         const emailResult = await sendCertificateEmail(student, event, certificateBuffer);

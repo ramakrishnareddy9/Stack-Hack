@@ -50,6 +50,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/notifications-api', require('./routes/notifications-api'));
 app.use('/api/certificates', require('./routes/certificates'));
+app.use('/api/ai-assistant', require('./routes/aiAssistant'));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nss-portal', {

@@ -57,10 +57,12 @@ router.post('/', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('Contribution validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { participationId, report, volunteerHours, evidence } = req.body;
+    console.log('📝 Submitting contribution:', { participationId, volunteerHours, evidenceCount: evidence?.length });
 
     // Verify participation belongs to student and is attended
     const participation = await Participation.findById(participationId)

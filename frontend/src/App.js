@@ -11,10 +11,13 @@ import AdminDashboard from './pages/Admin/Dashboard';
 import AdminEvents from './pages/Admin/Events';
 import AdminParticipations from './pages/Admin/Participations';
 import AdminReports from './pages/Admin/Reports';
+import AIReports from './pages/Admin/AIReports';
 import CertificateConfig from './pages/Admin/CertificateConfigNew';
 import StudentDashboard from './pages/Student/Dashboard';
 import StudentEvents from './pages/Student/Events';
 import StudentProfile from './pages/Student/Profile';
+import SubmitReport from './pages/Student/SubmitReport';
+import MyReports from './pages/Student/MyReports';
 import FacultyDashboard from './pages/Faculty/Dashboard';
 
 function App() {
@@ -69,6 +72,14 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/admin/ai-reports"
+              element={
+                <PrivateRoute roles={['admin', 'faculty']}>
+                  <AIReports />
+                </PrivateRoute>
+              }
+            />
 
             {/* Faculty Routes */}
             <Route
@@ -102,6 +113,22 @@ function App() {
               element={
                 <PrivateRoute roles={['student']}>
                   <StudentProfile />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/student/submit-report/:eventId"
+              element={
+                <PrivateRoute roles={['student']}>
+                  <SubmitReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/student/my-reports"
+              element={
+                <PrivateRoute roles={['student']}>
+                  <MyReports />
                 </PrivateRoute>
               }
             />

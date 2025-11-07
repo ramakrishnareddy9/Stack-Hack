@@ -1,11 +1,30 @@
 const express = require('express');
 const jsPDF = require('jspdf');
 const XLSX = require('xlsx');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
 const Event = require('../models/Event');
 const Participation = require('../models/Participation');
 const Contribution = require('../models/Contribution');
 const User = require('../models/User');
+const Report = require('../models/Report');
 const { auth, authorize } = require('../middleware/auth');
+const { analyzeStudentReport, generateConsolidatedReport, generateEventSummary } = require('../services/geminiService');
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument'];
+    if (allowedTypes.some(type => file.mimetype.startsWith(type) || file.mimetype.includes(type))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -357,6 +376,324 @@ router.get('/annual-summary', [auth, authorize('admin')], async (req, res) => {
     }
   } catch (error) {
     console.error('Generate annual summary error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/reports/student/submit
+// @desc    Student submits event report with file uploads
+// @access  Private (Student)
+router.post('/student/submit', [auth, authorize('student'), upload.array('files', 5)], async (req, res) => {
+  try {
+    const { eventId, title, description, academicYear } = req.body;
+
+    // Verify event exists
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Verify student participated in the event
+    const participation = await Participation.findOne({
+      student: req.user.id,
+      event: eventId,
+      status: { $in: ['attended', 'completed'] }
+    });
+
+    if (!participation) {
+      return res.status(403).json({ message: 'You must have attended this event to submit a report' });
+    }
+
+    // Upload files to Cloudinary
+    const uploadedFiles = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const b64 = Buffer.from(file.buffer).toString('base64');
+        const dataURI = `data:${file.mimetype};base64,${b64}`;
+        
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: 'nss-reports',
+          resource_type: 'auto'
+        });
+
+        uploadedFiles.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+          fileName: file.originalname,
+          fileType: file.mimetype
+        });
+      }
+    }
+
+    // Create report
+    const report = await Report.create({
+      student: req.user.id,
+      event: eventId,
+      title,
+      description,
+      files: uploadedFiles,
+      academicYear: academicYear || new Date().getFullYear().toString(),
+      status: 'submitted'
+    });
+
+    // Populate event details
+    await report.populate('event', 'title startDate endDate location');
+    await report.populate('student', 'name email studentId');
+
+    // Analyze with Gemini AI (async, don't wait)
+    analyzeStudentReport(report)
+      .then(async (analysis) => {
+        await Report.findByIdAndUpdate(report._id, {
+          aiSummary: analysis.summary,
+          aiAnalysis: {
+            keyPoints: analysis.keyPoints,
+            learnings: analysis.learnings,
+            impact: analysis.impact,
+            recommendations: analysis.recommendations,
+            generatedAt: new Date()
+          }
+        });
+        console.log(`✅ AI analysis completed for report ${report._id}`);
+      })
+      .catch(err => console.error('AI analysis failed:', err));
+
+    res.status(201).json({
+      message: 'Report submitted successfully. AI analysis in progress.',
+      report
+    });
+  } catch (error) {
+    console.error('Submit report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   GET /api/reports/student/my-reports
+// @desc    Get all reports submitted by the logged-in student
+// @access  Private (Student)
+router.get('/student/my-reports', auth, async (req, res) => {
+  try {
+    const reports = await Report.find({ student: req.user.id })
+      .populate('event', 'title startDate endDate location')
+      .sort({ createdAt: -1 });
+
+    res.json(reports);
+  } catch (error) {
+    console.error('Get student reports error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/reports/admin/all
+// @desc    Get all student reports (Admin)
+// @access  Private (Admin/Faculty)
+router.get('/admin/all', [auth, authorize('admin', 'faculty')], async (req, res) => {
+  try {
+    const { eventId, academicYear, status } = req.query;
+    
+    const query = {};
+    if (eventId) query.event = eventId;
+    if (academicYear) query.academicYear = academicYear;
+    if (status) query.status = status;
+
+    const reports = await Report.find(query)
+      .populate('student', 'name email studentId department')
+      .populate('event', 'title startDate endDate location')
+      .sort({ createdAt: -1 });
+
+    res.json(reports);
+  } catch (error) {
+    console.error('Get all reports error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/reports/admin/analyze/:reportId
+// @desc    Manually trigger AI analysis for a report
+// @access  Private (Admin/Faculty)
+router.post('/admin/analyze/:reportId', [auth, authorize('admin', 'faculty')], async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.reportId)
+      .populate('event', 'title')
+      .populate('student', 'name');
+
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    const analysis = await analyzeStudentReport(report);
+
+    const updatedReport = await Report.findByIdAndUpdate(
+      report._id,
+      {
+        aiSummary: analysis.summary,
+        aiAnalysis: {
+          keyPoints: analysis.keyPoints,
+          learnings: analysis.learnings,
+          impact: analysis.impact,
+          recommendations: analysis.recommendations,
+          generatedAt: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    res.json({
+      message: 'AI analysis completed',
+      analysis: updatedReport.aiAnalysis,
+      summary: updatedReport.aiSummary
+    });
+  } catch (error) {
+    console.error('Analyze report error:', error);
+    res.status(500).json({ message: 'Failed to analyze report', error: error.message });
+  }
+});
+
+// @route   POST /api/reports/admin/generate-naac
+// @desc    Generate NAAC report using Gemini AI
+// @access  Private (Admin)
+router.post('/admin/generate-naac', [auth, authorize('admin')], async (req, res) => {
+  try {
+    const { academicYear } = req.body;
+
+    if (!academicYear) {
+      return res.status(400).json({ message: 'Academic year is required' });
+    }
+
+    // Fetch all approved reports for the academic year
+    const reports = await Report.find({
+      academicYear,
+      status: { $in: ['submitted', 'reviewed', 'approved'] }
+    })
+      .populate('student', 'name email studentId department')
+      .populate('event', 'title startDate endDate location category eventType');
+
+    if (reports.length === 0) {
+      return res.status(404).json({ message: 'No reports found for this academic year' });
+    }
+
+    console.log(`📊 Generating NAAC report for ${academicYear} with ${reports.length} reports...`);
+
+    const naacReport = await generateConsolidatedReport(reports, academicYear, 'NAAC');
+
+    res.json({
+      message: 'NAAC report generated successfully',
+      report: naacReport
+    });
+  } catch (error) {
+    console.error('Generate NAAC report error:', error);
+    res.status(500).json({ message: 'Failed to generate NAAC report', error: error.message });
+  }
+});
+
+// @route   POST /api/reports/admin/generate-ugc
+// @desc    Generate UGC report using Gemini AI
+// @access  Private (Admin)
+router.post('/admin/generate-ugc', [auth, authorize('admin')], async (req, res) => {
+  try {
+    const { academicYear } = req.body;
+
+    if (!academicYear) {
+      return res.status(400).json({ message: 'Academic year is required' });
+    }
+
+    const reports = await Report.find({
+      academicYear,
+      status: { $in: ['submitted', 'reviewed', 'approved'] }
+    })
+      .populate('student', 'name email studentId department')
+      .populate('event', 'title startDate endDate location category eventType');
+
+    if (reports.length === 0) {
+      return res.status(404).json({ message: 'No reports found for this academic year' });
+    }
+
+    console.log(`📊 Generating UGC report for ${academicYear} with ${reports.length} reports...`);
+
+    const ugcReport = await generateConsolidatedReport(reports, academicYear, 'UGC');
+
+    res.json({
+      message: 'UGC report generated successfully',
+      report: ugcReport
+    });
+  } catch (error) {
+    console.error('Generate UGC report error:', error);
+    res.status(500).json({ message: 'Failed to generate UGC report', error: error.message });
+  }
+});
+
+// @route   POST /api/reports/admin/event-summary/:eventId
+// @desc    Generate AI summary for specific event from all student reports
+// @access  Private (Admin/Faculty)
+router.post('/admin/event-summary/:eventId', [auth, authorize('admin', 'faculty')], async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const reports = await Report.find({
+      event: req.params.eventId,
+      status: { $in: ['submitted', 'reviewed', 'approved'] }
+    }).populate('student', 'name email');
+
+    if (reports.length === 0) {
+      return res.status(404).json({ message: 'No reports found for this event' });
+    }
+
+    console.log(`📝 Generating summary for event ${event.title} with ${reports.length} reports...`);
+
+    const summary = await generateEventSummary(reports, event);
+
+    res.json({
+      message: 'Event summary generated successfully',
+      event: {
+        id: event._id,
+        title: event.title,
+        date: `${new Date(event.startDate).toLocaleDateString()} - ${new Date(event.endDate).toLocaleDateString()}`
+      },
+      totalReports: reports.length,
+      summary
+    });
+  } catch (error) {
+    console.error('Generate event summary error:', error);
+    res.status(500).json({ message: 'Failed to generate event summary', error: error.message });
+  }
+});
+
+// @route   PUT /api/reports/admin/review/:reportId
+// @desc    Review and approve/reject student report
+// @access  Private (Admin/Faculty)
+router.put('/admin/review/:reportId', [auth, authorize('admin', 'faculty')], async (req, res) => {
+  try {
+    const { status, reviewNotes } = req.body;
+
+    if (!['reviewed', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      req.params.reportId,
+      {
+        status,
+        reviewNotes,
+        reviewedBy: req.user.id,
+        reviewedAt: new Date()
+      },
+      { new: true }
+    )
+      .populate('student', 'name email')
+      .populate('event', 'title');
+
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    res.json({
+      message: `Report ${status} successfully`,
+      report
+    });
+  } catch (error) {
+    console.error('Review report error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

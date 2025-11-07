@@ -39,13 +39,16 @@ const StudentProfile = () => {
 
   const downloadCertificate = async (participationId) => {
     try {
-      const response = await api.get(`/reports/certificate/${participationId}`, {
+      // Extract ID if it's an object
+      const id = typeof participationId === 'object' ? participationId._id : participationId;
+      
+      const response = await api.get(`/reports/certificate/${id}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `certificate-${participationId}.pdf`);
+      link.setAttribute('download', `certificate-${id}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -181,7 +184,7 @@ const StudentProfile = () => {
                     <p className="text-sm text-gray-600 mb-2">{contribution.report}</p>
                     {contribution.participation && (
                       <button
-                        onClick={() => downloadCertificate(contribution.participation)}
+                        onClick={() => downloadCertificate(typeof contribution.participation === 'object' ? contribution.participation._id : contribution.participation)}
                         className="inline-flex items-center px-3 py-1 text-sm font-medium text-primary-600 hover:text-primary-700"
                       >
                         <DocumentArrowDownIcon className="h-4 w-4 mr-1" />

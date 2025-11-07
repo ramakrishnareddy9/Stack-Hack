@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
+import AIWritingAssistant from '../AIWritingAssistant';
 import { DocumentArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const ContributionForm = ({ participation, onClose, onSuccess }) => {
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm();
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm();
   const [evidence, setEvidence] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const reportValue = watch('report', '');
 
   const handleFileUpload = async (file) => {
     setUploading(true);
@@ -68,7 +70,14 @@ const ContributionForm = ({ participation, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit contribution');
+      // Better error handling to show validation errors
+      if (error.response?.data?.errors) {
+        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+        toast.error(`Validation Error: ${errorMessages}`);
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to submit contribution');
+      }
+      console.error('Submit contribution error:', error.response?.data);
     } finally {
       setSubmitting(false);
     }
@@ -92,9 +101,20 @@ const ContributionForm = ({ participation, onClose, onSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Report *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Report *
+              </label>
+              <AIWritingAssistant
+                onInsert={(content) => setValue('report', content)}
+                eventContext={{
+                  eventTitle: participation.event?.title,
+                  eventType: participation.event?.eventType || 'Contribution'
+                }}
+                reportType="contribution"
+                currentText={reportValue}
+              />
+            </div>
             <textarea
               {...register('report', { required: 'Report is required' })}
               rows={6}
