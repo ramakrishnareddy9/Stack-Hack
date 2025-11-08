@@ -31,8 +31,20 @@ const io = require('socket.io')(server, {
 // Make io accessible to routes
 app.set('io', io);
 
-// Middleware
-app.use(cors());
+// Middleware - Allow frontend URL for CORS
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001'
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
