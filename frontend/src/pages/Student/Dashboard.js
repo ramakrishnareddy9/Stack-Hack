@@ -101,20 +101,20 @@ const StudentDashboard = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome, {user?.name}!</h1>
-        <p className="mt-2 text-gray-600">Track your NSS activities and contributions</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Welcome back, {user?.name}!</h1>
+        <p className="mt-3 text-lg text-gray-600">Track your NSS activities and contributions</p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.title} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
+            <div key={stat.title} className="bg-white overflow-hidden shadow-soft hover:shadow-xl rounded-2xl border border-gray-100/50 transition-all duration-300 hover:-translate-y-1 group">
+              <div className="p-6">
                 <div className="flex items-center">
-                  <div className={`${stat.color} rounded-md p-3`}>
+                  <div className={`${stat.color} rounded-xl p-3.5 bg-gradient-to-br shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
@@ -122,7 +122,7 @@ const StudentDashboard = () => {
                       <dt className="text-sm font-medium text-gray-500 truncate">
                         {stat.title}
                       </dt>
-                      <dd className="text-lg font-semibold text-gray-900">
+                      <dd className="text-2xl font-bold text-gray-900 mt-1">
                         {stat.value}
                       </dd>
                     </dl>
@@ -135,40 +135,46 @@ const StudentDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="bg-white shadow-soft rounded-2xl p-6 border border-gray-100/50 hover:shadow-lg transition-shadow duration-300">
+          <h2 className="text-xl font-semibold text-gray-900 mb-5 flex items-center">
+            <span className="w-1 h-6 bg-primary-500 rounded-full mr-3"></span>
+            Quick Actions
+          </h2>
           <div className="space-y-3">
             <Link
               to="/student/events"
-              className="block w-full text-left px-4 py-2 bg-primary-50 hover:bg-primary-100 rounded-md text-primary-700 font-medium"
+              className="block w-full text-left px-5 py-3.5 bg-gradient-to-r from-primary-50 to-primary-100 hover:from-primary-100 hover:to-primary-200 rounded-xl text-primary-700 font-medium transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md"
             >
-              Browse Events
+              📅 Browse Events
             </Link>
             <Link
               to="/student/profile"
-              className="block w-full text-left px-4 py-2 bg-primary-50 hover:bg-primary-100 rounded-md text-primary-700 font-medium"
+              className="block w-full text-left px-5 py-3.5 bg-gradient-to-r from-secondary-50 to-secondary-100 hover:from-secondary-100 hover:to-secondary-200 rounded-xl text-secondary-700 font-medium transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md"
             >
-              View My Profile
+              👤 View My Profile
             </Link>
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Participations</h2>
+        <div className="bg-white shadow-soft rounded-2xl p-6 border border-gray-100/50 hover:shadow-lg transition-shadow duration-300">
+          <h2 className="text-xl font-semibold text-gray-900 mb-5 flex items-center">
+            <span className="w-1 h-6 bg-secondary-500 rounded-full mr-3"></span>
+            Recent Participations
+          </h2>
           <div className="space-y-3">
             {participations.slice(0, 5).map((participation) => (
-              <div key={participation._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+              <div key={participation._id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl hover:from-gray-100 hover:to-gray-200/50 transition-all duration-300">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     {participation.event?.title}
                   </p>
-                  <p className="text-xs text-gray-500">{participation.status}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Status: {participation.status}</p>
                 </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  participation.status === 'approved' ? 'bg-green-100 text-green-800' :
-                  participation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  participation.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
+                <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm ${
+                  participation.status === 'approved' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800' :
+                  participation.status === 'pending' ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800' :
+                  participation.status === 'rejected' ? 'bg-gradient-to-r from-red-100 to-red-200 text-red-800' :
+                  'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800'
                 }`}>
                   {participation.status}
                 </span>
@@ -182,19 +188,23 @@ const StudentDashboard = () => {
       </div>
 
       {/* My Certificates Section */}
-      <div className="mt-8 bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-          <DocumentTextIcon className="h-7 w-7 text-purple-600" />
+      <div className="mt-8 bg-white shadow-soft rounded-2xl p-7 border border-gray-100/50 hover:shadow-lg transition-shadow duration-300">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg">
+            <DocumentTextIcon className="h-6 w-6 text-white" />
+          </div>
           My Certificates
         </h2>
         
         {certificates.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {certificates.map((cert) => (
-              <div key={cert.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+              <div key={cert.id} className="border-2 border-gray-100 rounded-2xl p-5 hover:shadow-xl hover:border-purple-200 transition-all duration-300 bg-gradient-to-br from-white to-purple-50/30 group hover:-translate-y-1">
                 <div className="flex items-start justify-between mb-3">
-                  <DocumentTextIcon className="h-8 w-8 text-purple-500" />
-                  <span className="text-xs text-gray-500">
+                  <div className="p-2.5 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                    <DocumentTextIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                     {new Date(cert.certificate.generatedAt).toLocaleDateString('en-US', { 
                       month: 'short', 
                       day: 'numeric', 
